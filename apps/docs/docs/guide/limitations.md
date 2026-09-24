@@ -1,0 +1,11 @@
+# Known limitations and backlog
+
+As of 2026-09-24, the current release is a tested preview, not a complete v1. Prioritized backlog:
+
+1. **Filing-level statement enrichment:** `_htm.xml` numeric facts can be extracted with context, unit, dates, and dimensions, but custom and dimensional facts are not mapped into canonical statements. Inline HTML-only instances, scale/sign/nil variants need further fixtures. Acceptance: context-aware tests for these variants and safe mapping policy.
+2. **Changed fiscal year-end and short transition periods:** one real ICMB 10-KT case is supported with `periodEnd`; broader transitions remain unverified. Acceptance: more 10-KT and quarterly transition fixtures.
+3. **Broader cash-flow coverage:** Apple FY2025 direct and derived operating/investing/financing/capital-spending facts are tested; IFRS and nonstandard cash-flow concepts need real fixtures. Acceptance: foreign-filer and industry fixtures with lineage.
+4. **Broader mappings:** bank, insurer, REIT, funds, and additional IFRS concepts. Acceptance: real domestic and foreign fixtures with explicit canonical field expectations.
+5. **Bulk ZIP, historical daily indexes, and full-text search:** outside the single-company v1 path. Acceptance: separate APIs, bounded imports, and independent coverage docs. No undocumented full-text endpoint is implied.
+
+The SEC companyfacts API excludes custom and dimensional facts. The package cannot guarantee that all future SEC shapes or corrections are handled. `complete` means all current canonical fields were selected, not that a filing has been audited or that all company-specific lines were represented.
