@@ -1,0 +1,185 @@
+{
+  "date": "2026-09-24",
+  "fixtures": [
+    {
+      "file": "apple-submissions-fy2025.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0000320193.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Retains FY2024/FY2025 annual and quarterly recent rows and one older file reference; other rows removed.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-older-submissions-sample.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0000320193-submissions-001.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "First three historical rows; remaining rows removed.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-companyfacts-fy2025.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Only selected canonical tags and facts ending in the FY2025 window; other concepts and dates removed. Includes four verified cash-flow concepts.",
+      "tests": "Income, balance, cash-flow direct/derived periods, precision, lineage"
+    },
+    {
+      "file": "apple-q2-archive-index.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/index.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": "0000320193-25-000057",
+      "redactions": "Complete index.json, no redaction.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-net-income-concept.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/NetIncomeLoss.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Only facts ending 2025-03-29.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-assets-frame.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/frames/us-gaap/Assets/USD/CY2025Q1I.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Only Apple data row.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-ticker-lookup.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://www.sec.gov/files/company_tickers_exchange.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Only Apple data row.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-fy2023-53week-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0000320193.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Only annual/quarterly rows around FY2023.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-fy2023-53week-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Only revenue, net income, assets around FY2023.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "sap-fy2025-ifrs-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0001000184.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001000184",
+      "accessionNumber": null,
+      "redactions": "Only 2024 and 2025 20-F rows.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "sap-fy2025-ifrs-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001000184.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001000184",
+      "accessionNumber": null,
+      "redactions": "Only selected IFRS tags and 2024\u20132025 dates.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "icmb-fiscal-transition-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0001578348.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001578348",
+      "accessionNumber": null,
+      "redactions": "Only annual, quarterly, and transition rows around 2023\u20132025.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "apple-custom-xbrl-sample.xml",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329_htm.xml",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": "0000320193-25-000057",
+      "redactions": "Reconstructed XML root with one SEC context, USD unit, one custom fact, and one standard fact; all other elements removed.",
+      "tests": "contracts, financial periods, lineage, or archive parsing"
+    },
+    {
+      "file": "blocked-html.txt",
+      "kind": "synthetic anomaly",
+      "sourceUrl": null,
+      "retrieved": "2026-09-24",
+      "cik": null,
+      "accessionNumber": null,
+      "redactions": "Constructed, not a SEC response",
+      "tests": "HTTP 200 HTML where JSON expected"
+    },
+    {
+      "file": "malformed-json.txt",
+      "kind": "synthetic anomaly",
+      "sourceUrl": null,
+      "retrieved": "2026-09-24",
+      "cik": null,
+      "accessionNumber": null,
+      "redactions": "Constructed, not a SEC response",
+      "tests": "truncated JSON"
+    },
+    {
+      "file": "unsafe-number.json",
+      "kind": "synthetic anomaly",
+      "sourceUrl": null,
+      "retrieved": "2026-09-24",
+      "cik": null,
+      "accessionNumber": null,
+      "redactions": "Constructed, not a SEC response",
+      "tests": "numeric token above JS safe integer"
+    },
+    {
+      "file": "bayfirst-amended-fy2025-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0001649739.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001649739",
+      "accessionNumber": "0001649739-26-000049",
+      "redactions": "Only 2024\u20132025 annual and quarterly rows, including original 10-K and restated 10-K/A; other rows removed.",
+      "tests": "Real amended filing date and accession selection"
+    },
+    {
+      "file": "bayfirst-amended-fy2025-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001649739.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001649739",
+      "accessionNumber": "0001649739-26-000049",
+      "redactions": "Only 2025 annual net income, assets, and equity facts from original and amended 10-K.",
+      "tests": "latest, asFiled, and asOf real restatement policy"
+    }
+  ]
+}

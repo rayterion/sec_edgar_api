@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<xbrl xmlns="http://www.xbrl.org/2003/instance" xmlns:aapl="http://www.apple.com/20250329" xmlns:us-gaap="http://fasb.org/us-gaap/2024"><context id="c-21">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0000320193</identifier>
+        </entity>
+        <period>
+            <startDate>2023-12-31</startDate>
+            <endDate>2024-03-30</endDate>
+        </period>
+    </context>
+    <unit id="usd">
+        <measure>iso4217:USD</measure>
+    </unit>
+    <aapl:OtherComprehensiveIncomeLossDerivativeInstrumentGainLossBeforeReclassificationAfterTax contextRef="c-21" decimals="-6" id="f-139" unitRef="usd">456000000</aapl:OtherComprehensiveIncomeLossDerivativeInstrumentGainLossBeforeReclassificationAfterTax>
+    <us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax contextRef="c-21" decimals="-6" id="f-63" unitRef="usd">90753000000</us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax>
+    </xbrl>
