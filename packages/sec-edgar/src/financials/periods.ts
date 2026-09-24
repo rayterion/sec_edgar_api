@@ -47,7 +47,9 @@ export function determineFiscalPeriod(
   );
   if (periodEnd !== undefined)
     assertInput(isoDate(periodEnd), "Invalid periodEnd date");
-  const visible = filings.filter((x) => x.reportDate);
+  const visible = filings.filter(
+    (x) => x.reportDate && (!asOf || x.filed <= asOf),
+  );
   const annual = visible
     .filter(
       (x) =>
@@ -64,14 +66,22 @@ export function determineFiscalPeriod(
     annual.find(
       (x) => x.reportDate === annual[0]?.reportDate && !x.form.endsWith("/A"),
     ) ?? annual[0];
-  if (!target)
+  if (!target && (fiscalQuarter === undefined || fiscalQuarter === 4))
     throw new EdgarError(
       "NOT_FOUND",
       `Fiscal ${fiscalYear} annual filing was not found`,
     );
-  const end = target.reportDate!;
+  // A current-year quarter can be known before that year's annual report exists.
+  // Anchor it to the previous annual report and only use quarter filings visible asOf.
+  const end = target?.reportDate;
   const prior = visible
-    .filter((x) => annualForms.has(x.form) && x.reportDate! < end)
+    .filter(
+      (x) =>
+        annualForms.has(x.form) &&
+        (end
+          ? x.reportDate! < end
+          : x.reportDate!.slice(0, 4) === String(fiscalYear - 1)),
+    )
     .sort((a, b) => b.reportDate!.localeCompare(a.reportDate!))[0];
   if (!prior)
     throw new EdgarError(
@@ -79,7 +89,9 @@ export function determineFiscalPeriod(
       "Prior annual report is needed to establish fiscal-year start",
     );
   const start = nextDay(prior.reportDate!);
-  if (fiscalQuarter === undefined)
+  if (fiscalQuarter === undefined) {
+    if (!target || !end)
+      throw new EdgarError("NOT_FOUND", "Annual filing was not found");
     return {
       fiscalYear,
       fiscalQuarter: null,
@@ -88,12 +100,13 @@ export function determineFiscalPeriod(
       kind: target.form.startsWith("10-KT") ? "transition" : "year",
       filingAccession: target.accessionNumber,
     };
+  }
   const quarters = visible
     .filter(
       (x) =>
         quarterForms.has(x.form) &&
         x.reportDate! > prior.reportDate! &&
-        x.reportDate! < end,
+        (!end || x.reportDate! < end),
     )
     .sort(
       (a, b) =>
@@ -101,13 +114,13 @@ export function determineFiscalPeriod(
         a.filed.localeCompare(b.filed),
     );
   const unique = [...new Map(quarters.map((x) => [x.reportDate, x])).values()];
-  if (target.form.startsWith("10-KT") && fiscalQuarter === unique.length + 1) {
+  if (target?.form.startsWith("10-KT") && fiscalQuarter === unique.length + 1) {
     const previous = unique.at(-1)?.reportDate ?? prior.reportDate!;
     return {
       fiscalYear,
       fiscalQuarter,
       start: nextDay(previous),
-      end,
+      end: target.reportDate!,
       kind: "quarter",
       filingAccession: target.accessionNumber,
       fiscalStart: start,
@@ -115,7 +128,7 @@ export function determineFiscalPeriod(
     };
   }
   if (fiscalQuarter === 4) {
-    if (unique.length < 3)
+    if (!target || !end || unique.length < 3)
       throw new EdgarError(
         "NOT_FOUND",
         "Q3 filing is needed to establish Q4 start",

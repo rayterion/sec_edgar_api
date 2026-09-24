@@ -39,3 +39,9 @@ A registry GET for `sec-edgar-api` returned HTTP 200 and `@sec-edgar/research-cl
 **Findings.** For the exact 2025 annual duration, `NetIncomeLoss` changed from -22,937,000 USD (10-K filed 2026-03-27) to -24,565,000 USD (10-K/A filed 2026-08-12). Instant assets at 2025-12-31 changed from 1,300,258,000 to 1,294,269,000 USD. The default selects the amendment; `asFiled` and an `asOf` before the amendment select the original. Fixtures and tests are dated.
 
 **Selection correction.** An exact direct fact in a later mapping alias now outranks a derived value in the first alias. `asOf` limits eligible facts, while current submissions metadata identifies historical fiscal boundaries; it does not reconstruct a complete historical SEC API snapshot. Missing canonical fields now carry field-specific reasons.
+
+## 2026-09-24: Open fiscal year and as-of metadata
+
+**Method.** Replayed the recorded Apple submissions fixture with filings after 2025-05-02 excluded. FY2025 Q2 remained observable (2025-03-29 report, filed 2025-05-02), while its FY2025 10-K did not yet exist. The regression test initially failed because period discovery required that later 10-K.
+
+**Finding and decision.** For Q1–Q3 of an open year, anchor the fiscal start to the preceding filed annual report and use quarter reports filed by `asOf`. Annual and Q4 periods still require the target annual report. This is deterministic reconstruction from available metadata, not an SEC historical snapshot. See [ADR 009](../decisions/009-fiscal-period.md).
