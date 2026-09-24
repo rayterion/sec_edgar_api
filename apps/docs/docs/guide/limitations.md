@@ -1,6 +1,6 @@
 # Known limitations and backlog
 
-As of 2026-09-24, the current release is a tested preview, not a complete v1. Prioritized backlog:
+As of 2026-09-24, the current release is a tested preview, not a complete v1. The [production-readiness backlog](../backlog/production-readiness.md) tracks the server and financial-data reliability gates with acceptance criteria. Capability-specific limitations follow:
 
 1. **Filing-level statement enrichment:** `_htm.xml` numeric facts can be extracted with context, unit, dates, and dimensions, but custom and dimensional facts are not mapped into canonical statements. Inline HTML-only instances, scale/sign/nil variants need further fixtures. Acceptance: context-aware tests for these variants and safe mapping policy.
 2. **Changed fiscal year-end and short transition periods:** one real ICMB 10-KT case is supported with `periodEnd`; broader transitions remain unverified. Acceptance: more 10-KT and quarterly transition fixtures.
