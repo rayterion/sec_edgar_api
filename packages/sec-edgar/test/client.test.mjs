@@ -492,6 +492,17 @@ test("asOf selects Q2 as known by its filing date before the annual 10-K", async
   assert.equal(result.values.revenue, 95359000000);
   assert.equal(result.details.revenue.source.filed, "2025-05-02");
 });
+test("open fiscal year uses filed quarter reports without a future 10-K", async () => {
+  const submissions = await fixture("apple-submissions-fy2025.json");
+  const filed = normalizeColumns(
+    submissions.filings.recent,
+    "0000320193",
+  ).filter((filing) => filing.filed <= "2025-05-02");
+  const period = determineFiscalPeriod(filed, 2025, 2, "2025-05-02");
+  assert.equal(period.start, "2024-12-29");
+  assert.equal(period.end, "2025-03-29");
+  assert.equal(period.filingAccession, "0000320193-25-000057");
+});
 test("direct alternate standard tag outranks derived preferred tag", async () => {
   const data = await fixture("apple-companyfacts-fy2025.json");
   const submissions = await fixture("apple-submissions-fy2025.json");
