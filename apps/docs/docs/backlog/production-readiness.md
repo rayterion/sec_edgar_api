@@ -12,7 +12,7 @@ This is the maintained list of work needed before relying on normalized statemen
 
 | ID    | Priority | Work item                                           | Status |
 | ----- | -------- | --------------------------------------------------- | ------ |
-| PR-01 | P0       | Coherent fact selection and safe quarter derivation | Open   |
+| PR-01 | P0       | Coherent fact selection and safe quarter derivation | Done   |
 | PR-02 | P0       | Fiscal periods and historical filing coverage       | Open   |
 | PR-03 | P0       | Currency detection and broader statement mappings   | Open   |
 | PR-04 | P0       | Reproducible, auditable data snapshots              | Open   |
@@ -26,6 +26,8 @@ This is the maintained list of work needed before relying on normalized statemen
 `financials/selection.ts` currently ranks the later and earlier year-to-date operands independently. The selection policy must establish that operands belong to a compatible revision set, identify conflicting or duplicate facts, and return an explicit unavailable result when no safe pair exists. Direct facts and aliases need a documented, tested precedence across forms and amendments. Preserve losing candidates and reasons in the trace.
 
 **Acceptance:** Real amended and comparative fixtures exercise direct versus derived selection, mixed-revision operands, conflicting equal-rank facts, `latest`, `asFiled`, and `asOf`. No test produces a derived number from an incompatible pair. A statement exposes a specific reason when derivation is refused. See [financial semantics](../research/financial-semantics.md) and [ADR 008](../decisions/008-revision-policy.md), [ADR 010](../decisions/010-quarter-derivation.md).
+
+**Completion evidence (2026-09-24):** Tests commit `69bbee0`; implementation and research commit `5fa7022`. The recorded Apple comparative and BayFirst amended fixtures, plus the explicitly synthetic `selection-anomalies.json` overlay, exercise the cases above in `packages/sec-edgar/test/client.test.mjs`. `selectFactResult` returns `CONFLICTING_FACTS` or `INCOMPATIBLE_REVISIONS` when appropriate; statements expose `coverage.missingCodes`, `missingReasons`, and optional `selectionTraces`. The cohort rule is a conservative client policy; it cannot prove agreement between separate filings. Broader filing-level verification remains [PR-05](#pr-05--filing-level-coverage-and-financial-validation).
 
 ## PR-02 — Fiscal periods and historical filing coverage
 
