@@ -75,6 +75,12 @@ export class FinancialsApi {
       query.unit === undefined || /^[A-Z]{3}$/.test(query.unit),
       "unit must be a three-letter currency",
     );
+    assertInput(
+      Number.isInteger(query.fiscalYear) &&
+        query.fiscalYear >= 1994 &&
+        query.fiscalYear <= 2100,
+      "Invalid fiscal year",
+    );
     const identifier =
       query.ticker !== undefined
         ? { ticker: query.ticker }
@@ -83,8 +89,13 @@ export class FinancialsApi {
       signal: query.signal,
     });
     const request: RequestOptions = { signal: query.signal };
+    // Filing dates lag report dates. This window reaches the prior annual
+    // while the submissions reference ranges avoid unrelated history files.
+    const from = `${query.fiscalYear - 2}-01-01`;
+    const windowEnd = `${query.fiscalYear + 2}-12-31`;
+    const to = query.asOf && query.asOf < windowEnd ? query.asOf : windowEnd;
     const [filings, facts] = await Promise.all([
-      this.filings.recent(company.cik, request),
+      this.filings.list({ cik: company.cik, from, to }, request),
       this.xbrl.companyFacts({ cik: company.cik }, request),
     ]);
     const period = determineFiscalPeriod(

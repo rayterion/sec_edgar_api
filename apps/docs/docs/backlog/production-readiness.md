@@ -13,7 +13,7 @@ This is the maintained list of work needed before relying on normalized statemen
 | ID    | Priority | Work item                                           | Status |
 | ----- | -------- | --------------------------------------------------- | ------ |
 | PR-01 | P0       | Coherent fact selection and safe quarter derivation | Done   |
-| PR-02 | P0       | Fiscal periods and historical filing coverage       | Open   |
+| PR-02 | P0       | Fiscal periods and historical filing coverage       | Done   |
 | PR-03 | P0       | Currency detection and broader statement mappings   | Open   |
 | PR-04 | P0       | Reproducible, auditable data snapshots              | Open   |
 | PR-05 | P0       | Filing-level coverage and financial validation      | Open   |
@@ -34,6 +34,8 @@ This is the maintained list of work needed before relying on normalized statemen
 Financial statements currently call `filings.recent`, even though `filings.list` can follow referenced older submissions files. Extend period discovery to the relevant historical files without downloading unrelated history. Expand real fixtures for 52/53-week years, missing quarter reports, short periods, year-end changes, transition reports, and foreign filers. Verify fiscal-year labels separately from the report date's calendar year.
 
 **Acceptance:** Annual and Q1–Q4 queries work for recorded current and older periods; ambiguous or unsupported periods fail explicitly. Tests cover historical-file pagination and `asOf` before the annual filing. See [endpoint inventory](../research/endpoint-inventory.md) and [ADR 009](../decisions/009-fiscal-period.md).
+
+**Completion evidence (2026-09-24):** Real Apple FY2015 and Sportsman’s Warehouse FY2025 fixture rows cover older-submissions pagination, annual and Q1–Q4 income, quarter-end balance, 53-week dates, and a fiscal label that differs from the calendar year. ICMB transition and SAP foreign-filer tests remain in the suite. Historical `asOf` before the annual report, malformed older-file ranges, and a synthetic missing-Q2 omission are tested. Statements fetch only older files whose date range intersects their bounded filing window. January/February year ends require `periodEnd` and return `AMBIGUOUS_PERIOD` otherwise; broader automatic labeling remains outside this completed acceptance scope. See [ADR 009](../decisions/009-fiscal-period.md).
 
 ## PR-03 — Currency detection and broader statement mappings
 

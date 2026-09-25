@@ -23,6 +23,7 @@ export type EdgarErrorCode =
   | "MALFORMED_XML"
   | "SCHEMA"
   | "NOT_FOUND"
+  | "AMBIGUOUS_PERIOD"
   | "MISSING_HISTORY"
   | "PRECISION"
   | "UNSUPPORTED"

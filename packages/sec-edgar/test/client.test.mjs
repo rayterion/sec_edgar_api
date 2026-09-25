@@ -27,6 +27,10 @@ const source = {
     "apple-older-submissions-sample.json",
   "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json":
     "apple-companyfacts-fy2025.json",
+  "https://data.sec.gov/submissions/CIK0001132105.json":
+    "spwh-fy2025-submissions.json",
+  "https://data.sec.gov/api/xbrl/companyfacts/CIK0001132105.json":
+    "spwh-fy2025-companyfacts.json",
   "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/NetIncomeLoss.json":
     "apple-net-income-concept.json",
   "https://data.sec.gov/api/xbrl/frames/us-gaap/Assets/USD/CY2025Q1I.json":
@@ -1006,5 +1010,184 @@ test("PR-01 trace explains facts excluded by asOf", async () => {
     result.candidates.some(
       (x) => x.filed === "2026-05-01" && x.reason === "filed after asOf",
     ),
+  );
+});
+
+test("PR-02 historical Apple FY2015 annual and Q1–Q4 use referenced submissions", async () => {
+  const url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const old =
+    "https://data.sec.gov/submissions/CIK0000320193-submissions-001.json";
+  const facts = await fixture("apple-fy2015-companyfacts.json");
+  const { edgar, seen } = client({
+    [url]: () =>
+      new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  const annual = await edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2015,
+  });
+  assert.equal(annual.period.start, "2014-09-28");
+  assert.equal(annual.period.end, "2015-09-26");
+  assert.equal(annual.values.revenue, 233715000000);
+  assert.equal(
+    annual.details.revenue.source.accessionNumber,
+    "0001193125-15-356351",
+  );
+  for (const [q, value, end] of [
+    [1, 74599000000, "2014-12-27"],
+    [2, 58010000000, "2015-03-28"],
+    [3, 49605000000, "2015-06-27"],
+    [4, 51501000000, "2015-09-26"],
+  ]) {
+    const result = await edgar.financials.incomeStatement({
+      ticker: "AAPL",
+      fiscalYear: 2015,
+      fiscalQuarter: q,
+    });
+    assert.equal(result.period.end, end);
+    assert.equal(result.values.revenue, value);
+  }
+  const balance = await edgar.financials.balanceSheet({
+    ticker: "AAPL",
+    fiscalYear: 2015,
+    fiscalQuarter: 2,
+  });
+  assert.equal(balance.values.totalAssets, 261194000000);
+  assert.ok(seen.some(([requestUrl]) => requestUrl === old));
+});
+
+test("PR-02 filtered historical pagination skips unrelated files", async () => {
+  const rootUrl = "https://data.sec.gov/submissions/CIK0000320193.json";
+  const olderUrl =
+    "https://data.sec.gov/submissions/CIK0000320193-submissions-001.json";
+  const unrelatedUrl =
+    "https://data.sec.gov/submissions/CIK0000320193-submissions-002.json";
+  const root = await fixture("apple-submissions-fy2025.json");
+  root.filings.files.push({
+    name: "CIK0000320193-submissions-002.json",
+    filingFrom: "1990-01-01",
+    filingTo: "1993-12-31",
+    filingCount: 50,
+  });
+  const { edgar, seen } = client({
+    [rootUrl]: () =>
+      new Response(JSON.stringify(root), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  const rows = await edgar.filings.list({
+    cik: 320193,
+    from: "2014-01-01",
+    to: "2015-12-31",
+  });
+  assert.ok(rows.some((x) => x.accessionNumber === "0001193125-14-383437"));
+  assert.ok(seen.some(([url]) => url === olderUrl));
+  assert.ok(!seen.some(([url]) => url === unrelatedUrl));
+  seen.length = 0;
+  await edgar.filings.list({
+    cik: 320193,
+    from: "2024-01-01",
+    to: "2026-12-31",
+  });
+  assert.ok(!seen.some(([url]) => url === olderUrl));
+});
+
+test("PR-02 missing Q2 filing cannot be relabeled from Q3", async () => {
+  const root = await fixture("apple-submissions-fy2025.json");
+  const old = await fixture("apple-older-submissions-sample.json");
+  const rows = [
+    ...normalizeColumns(root.filings.recent, "0000320193"),
+    ...normalizeColumns(old, "0000320193"),
+  ].filter((x) => x.accessionNumber !== "0001193125-15-153166");
+  assert.throws(() => determineFiscalPeriod(rows, 2015, 2), {
+    code: "NOT_FOUND",
+  });
+  assert.equal(determineFiscalPeriod(rows, 2015, 1).end, "2014-12-27");
+});
+
+test("PR-02 explicit periodEnd handles a fiscal label unlike report calendar year", async () => {
+  const { edgar } = client();
+  await assert.rejects(
+    edgar.financials.incomeStatement({ cik: 1132105, fiscalYear: 2025 }),
+    { code: "AMBIGUOUS_PERIOD" },
+  );
+  const annual = await edgar.financials.incomeStatement({
+    cik: 1132105,
+    fiscalYear: 2025,
+    periodEnd: "2026-01-31",
+  });
+  assert.equal(annual.period.start, "2025-02-02");
+  assert.equal(annual.period.end, "2026-01-31");
+  assert.equal(annual.values.revenue, 1209182000);
+  for (const [q, end] of [
+    [1, "2025-05-03"],
+    [2, "2025-08-02"],
+    [3, "2025-11-01"],
+    [4, "2026-01-31"],
+  ]) {
+    const quarter = await edgar.financials.incomeStatement({
+      cik: 1132105,
+      fiscalYear: 2025,
+      fiscalQuarter: q,
+      periodEnd: "2026-01-31",
+    });
+    assert.equal(quarter.period.end, end);
+    assert.ok(quarter.values.revenue !== null);
+  }
+  const beforeAnnual = await edgar.financials.incomeStatement({
+    cik: 1132105,
+    fiscalYear: 2025,
+    fiscalQuarter: 2,
+    periodEnd: "2026-01-31",
+    asOf: "2025-09-04",
+  });
+  assert.equal(beforeAnnual.period.start, "2025-05-04");
+  assert.equal(beforeAnnual.values.revenue, 293899000);
+});
+
+test("PR-02 historical asOf finds Q2 before FY2015 annual filing", async () => {
+  const url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const facts = await fixture("apple-fy2015-companyfacts.json");
+  const { edgar } = client({
+    [url]: () =>
+      new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  const q2 = await edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2015,
+    fiscalQuarter: 2,
+    asOf: "2015-04-28",
+  });
+  assert.equal(q2.period.start, "2014-12-28");
+  assert.equal(q2.period.end, "2015-03-28");
+  assert.equal(q2.values.revenue, 58010000000);
+  await assert.rejects(
+    edgar.financials.incomeStatement({
+      ticker: "AAPL",
+      fiscalYear: 2015,
+      asOf: "2015-04-28",
+    }),
+    { code: "NOT_FOUND" },
+  );
+});
+
+test("PR-02 malformed history range is a schema error", async () => {
+  const url = "https://data.sec.gov/submissions/CIK0000320193.json";
+  const root = await fixture("apple-submissions-fy2025.json");
+  root.filings.files[0].filingFrom = "2016-01-01";
+  root.filings.files[0].filingTo = "2015-12-31";
+  const { edgar } = client({
+    [url]: () =>
+      new Response(JSON.stringify(root), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  await assert.rejects(
+    edgar.filings.list({ cik: 320193, from: "2015-01-01", to: "2015-12-31" }),
+    { code: "SCHEMA" },
   );
 });

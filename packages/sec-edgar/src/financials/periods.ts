@@ -22,6 +22,15 @@ const annualForms = new Set([
   "10-KT/A",
 ]);
 const quarterForms = new Set(["10-Q", "10-Q/A"]);
+function daysBetween(start: string, end: string): number {
+  return (
+    (Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) /
+    86_400_000
+  );
+}
+function ambiguousFiscalLabel(date: string): boolean {
+  return Number(date.slice(5, 7)) <= 2;
+}
 function nextDay(date: string): string {
   const d = new Date(date + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + 1);
@@ -54,8 +63,9 @@ export function determineFiscalPeriod(
     .filter(
       (x) =>
         annualForms.has(x.form) &&
-        x.reportDate!.slice(0, 4) === String(fiscalYear) &&
-        (!periodEnd || x.reportDate === periodEnd),
+        (periodEnd
+          ? x.reportDate === periodEnd
+          : x.reportDate!.slice(0, 4) === String(fiscalYear)),
     )
     .sort(
       (a, b) =>
@@ -78,11 +88,20 @@ export function determineFiscalPeriod(
     .filter(
       (x) =>
         annualForms.has(x.form) &&
-        (end
-          ? x.reportDate! < end
+        (end || periodEnd
+          ? x.reportDate! < (end ?? periodEnd!)
           : x.reportDate!.slice(0, 4) === String(fiscalYear - 1)),
     )
     .sort((a, b) => b.reportDate!.localeCompare(a.reportDate!))[0];
+  if (
+    !periodEnd &&
+    (target || prior) &&
+    ambiguousFiscalLabel((target ?? prior)!.reportDate!)
+  )
+    throw new EdgarError(
+      "AMBIGUOUS_PERIOD",
+      "A January or February report end does not establish the company's fiscal-year label; specify periodEnd",
+    );
   if (!prior)
     throw new EdgarError(
       "NOT_FOUND",
@@ -106,7 +125,7 @@ export function determineFiscalPeriod(
       (x) =>
         quarterForms.has(x.form) &&
         x.reportDate! > prior.reportDate! &&
-        (!end || x.reportDate! < end),
+        (!(end || periodEnd) || x.reportDate! < (end ?? periodEnd!)),
     )
     .sort(
       (a, b) =>
@@ -114,6 +133,25 @@ export function determineFiscalPeriod(
         a.filed.localeCompare(b.filed),
     );
   const unique = [...new Map(quarters.map((x) => [x.reportDate, x])).values()];
+  // A report missing from submissions must not shift the next report into its
+  // quarter slot. 53-week quarters are shorter than this conservative bound.
+  let previousEnd = prior.reportDate!;
+  for (const quarter of unique.slice(
+    0,
+    fiscalQuarter === 4 ? 3 : fiscalQuarter,
+  )) {
+    if (daysBetween(previousEnd, quarter.reportDate!) > 125)
+      throw new EdgarError(
+        "NOT_FOUND",
+        `A quarterly filing is missing between ${previousEnd} and ${quarter.reportDate}`,
+      );
+    previousEnd = quarter.reportDate!;
+  }
+  if (unique.length > 3)
+    throw new EdgarError(
+      "AMBIGUOUS_PERIOD",
+      "More than three distinct quarter report ends precede the annual report; specify a supported transition period",
+    );
   if (target?.form.startsWith("10-KT") && fiscalQuarter === unique.length + 1) {
     const previous = unique.at(-1)?.reportDate ?? prior.reportDate!;
     return {

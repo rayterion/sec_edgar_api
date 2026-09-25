@@ -32,3 +32,8 @@ Accessed 2026-09-24. URLs are primary sources except where marked ecosystem revi
 | BayFirst company facts, SEC | https://data.sec.gov/api/xbrl/companyfacts/CIK0001649739.json | Changed net income and assets | revision policy |
 
 | Financial Statement Data Sets guide, SEC | https://www.sec.gov/files/financial-statement-data-sets.pdf | As-filed submissions can include amendments, redundancies, and inconsistencies | PR-01 conflict and revision decisions |
+
+| Apple older submissions, SEC | https://data.sec.gov/submissions/CIK0000320193-submissions-001.json | FY2015 quarterly and FY2014 annual rows outside current `recent` | PR-02 period discovery and fixture |
+| Sportsman’s Warehouse submissions, SEC | https://data.sec.gov/submissions/CIK0001132105.json | Annual and quarter report ends around fiscal 2025 | PR-02 fixture and periods |
+| Sportsman’s Warehouse company facts, SEC | https://data.sec.gov/api/xbrl/companyfacts/CIK0001132105.json | Revenue and assets; adjacent annual rows both have `fy: 2025` | PR-02 fiscal-label guard |
+| Sportsman’s Warehouse 2025 10-K, SEC | https://www.sec.gov/Archives/edgar/data/1132105/000119312526134702/spwh-20260131.htm | Company names year ended 2026-01-31 as fiscal 2025 | PR-02 label verification |

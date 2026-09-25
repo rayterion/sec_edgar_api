@@ -143,10 +143,25 @@ export class FilingsApi {
       schema(
         record(file) &&
           typeof file.name === "string" &&
+          file.name.startsWith(`CIK${cik}-submissions-`) &&
           /^CIK\d{10}-submissions-\d{3}\.json$/.test(file.name),
         "Invalid older submissions filename",
         url,
       );
+      schema(
+        (file.filingFrom === undefined || isoDate(file.filingFrom)) &&
+          (file.filingTo === undefined || isoDate(file.filingTo)) &&
+          (file.filingFrom === undefined ||
+            file.filingTo === undefined ||
+            file.filingFrom <= file.filingTo),
+        "Invalid older submissions date range",
+        url,
+      );
+      if (
+        (query.from && file.filingTo && file.filingTo < query.from) ||
+        (query.to && file.filingFrom && file.filingFrom > query.to)
+      )
+        continue;
       const historyUrl = `https://data.sec.gov/submissions/${file.name}`;
       try {
         rows.push(

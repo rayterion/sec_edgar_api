@@ -8,7 +8,7 @@
       "retrieved": "2026-09-24",
       "cik": "0000320193",
       "accessionNumber": null,
-      "redactions": "Retains FY2024/FY2025 annual and quarterly recent rows and one older file reference; other rows removed.",
+      "redactions": "Retains FY2024/FY2025 annual and quarterly rows, the FY2015 annual row, and one older file reference; other rows removed.",
       "tests": "contracts, financial periods, lineage, or archive parsing"
     },
     {
@@ -18,7 +18,7 @@
       "retrieved": "2026-09-24",
       "cik": "0000320193",
       "accessionNumber": null,
-      "redactions": "First three historical rows; remaining rows removed.",
+      "redactions": "Six real historical rows including FY2014 annual and FY2015 Q1-Q3; other rows removed.",
       "tests": "contracts, financial periods, lineage, or archive parsing"
     },
     {
@@ -108,7 +108,7 @@
       "retrieved": "2026-09-24",
       "cik": "0001000184",
       "accessionNumber": null,
-      "redactions": "Only selected IFRS tags and 2024\u20132025 dates.",
+      "redactions": "Only selected IFRS tags and 2024–2025 dates.",
       "tests": "contracts, financial periods, lineage, or archive parsing"
     },
     {
@@ -118,7 +118,7 @@
       "retrieved": "2026-09-24",
       "cik": "0001578348",
       "accessionNumber": null,
-      "redactions": "Only annual, quarterly, and transition rows around 2023\u20132025.",
+      "redactions": "Only annual, quarterly, and transition rows around 2023–2025.",
       "tests": "contracts, financial periods, lineage, or archive parsing"
     },
     {
@@ -168,7 +168,7 @@
       "retrieved": "2026-09-24",
       "cik": "0001649739",
       "accessionNumber": "0001649739-26-000049",
-      "redactions": "Only 2024\u20132025 annual and quarterly rows, including original 10-K and restated 10-K/A; other rows removed.",
+      "redactions": "Only 2024–2025 annual and quarterly rows, including original 10-K and restated 10-K/A; other rows removed.",
       "tests": "Real amended filing date and accession selection"
     },
     {
@@ -190,6 +190,36 @@
       "accessionNumber": null,
       "redactions": "Constructed from the shapes and dates of recorded Apple FY2025/FY2026 comparative rows; the late Q1 amendment, conflicting direct/YTD values, and alternate-tag revision are synthetic and did not appear in SEC responses.",
       "tests": "PR-01 mixed-revision refusal, equal-source conflict/duplicate handling, and cross-alias revision precedence; base real response is apple-companyfacts-fy2025.json"
+    },
+    {
+      "file": "apple-fy2015-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Selected real FY2014/FY2015 revenue, net income, and assets rows; other concepts and dates removed.",
+      "tests": "Historical annual/Q1-Q4 income, Q2 balance, asOf, fact lineage"
+    },
+    {
+      "file": "spwh-fy2025-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0001132105.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001132105",
+      "accessionNumber": null,
+      "redactions": "Six real FY2023-FY2025 annual and FY2025 Q1-Q3 filing rows; other rows removed.",
+      "tests": "January fiscal end, 52/53-week boundaries, explicit periodEnd"
+    },
+    {
+      "file": "spwh-fy2025-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001132105.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001132105",
+      "accessionNumber": null,
+      "redactions": "Selected real FY2024/FY2025 revenue and assets facts; other concepts and dates removed.",
+      "tests": "Fiscal label/calendar mismatch, annual and quarterly revenue"
     }
   ]
 }
