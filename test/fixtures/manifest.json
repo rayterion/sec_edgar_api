@@ -180,6 +180,16 @@
       "accessionNumber": "0001649739-26-000049",
       "redactions": "Only 2025 annual net income, assets, and equity facts from original and amended 10-K.",
       "tests": "latest, asFiled, and asOf real restatement policy"
+    },
+    {
+      "file": "selection-anomalies.json",
+      "kind": "synthetic anomaly overlay",
+      "sourceUrl": null,
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": null,
+      "redactions": "Constructed from the shapes and dates of recorded Apple FY2025/FY2026 comparative rows; the late Q1 amendment, conflicting direct/YTD values, and alternate-tag revision are synthetic and did not appear in SEC responses.",
+      "tests": "PR-01 mixed-revision refusal, equal-source conflict/duplicate handling, and cross-alias revision precedence; base real response is apple-companyfacts-fy2025.json"
     }
   ]
 }

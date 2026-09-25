@@ -8,6 +8,7 @@ import secEdgar, {
   safeNumber,
   determineFiscalPeriod,
   selectFact,
+  selectFactResult,
   incomeMappings,
 } from "../dist/index.js";
 const fixture = async (name) =>
@@ -750,6 +751,260 @@ test("selection trace explains direct rank and derived operands", async () => {
   assert.ok(
     derived.operands.every((x) =>
       x.url.startsWith("https://www.sec.gov/Archives/"),
+    ),
+  );
+});
+
+// PR-01: mutations below model a conflict on top of recorded Apple SEC rows;
+// the original excerpt remains unchanged in test/fixtures.
+test("PR-01 refuses mixed comparative revision operands and reports why", async () => {
+  const data = await fixture("apple-companyfacts-fy2025.json");
+  const anomaly = await fixture("selection-anomalies.json");
+  const submissions = await fixture("apple-submissions-fy2025.json");
+  const period = determineFiscalPeriod(
+    normalizeColumns(submissions.filings.recent, "0000320193"),
+    2025,
+    2,
+  );
+  const revenue =
+    data.facts["us-gaap"].RevenueFromContractWithCustomerExcludingAssessedTax
+      .units.USD;
+  data.facts[
+    "us-gaap"
+  ].RevenueFromContractWithCustomerExcludingAssessedTax.units.USD =
+    revenue.filter((x) => !(x.start === period.start && x.end === period.end));
+  data.facts[
+    "us-gaap"
+  ].RevenueFromContractWithCustomerExcludingAssessedTax.units.USD.push(
+    anomaly.latePriorRevision,
+  );
+  const selected = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { trace: true },
+  );
+  assert.equal(selected.fact, null);
+  assert.equal(selected.failureCode, "INCOMPATIBLE_REVISIONS");
+  assert.match(selected.reason, /newer.*prior.*later/i);
+  assert.ok(selected.candidates.some((x) => x.reason.includes("incompatible")));
+  const asOf = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { asOf: "2026-05-01" },
+  );
+  assert.equal(asOf.fact.exactValue, "95359000000");
+  assert.equal(asOf.fact.operands[0].accessionNumber, "0000320193-26-000013");
+  assert.equal(asOf.fact.operands[1].accessionNumber, "0000320193-26-000006");
+  const asFiled = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { revision: "asFiled" },
+  );
+  assert.equal(asFiled.fact.exactValue, "95359000000");
+  assert.equal(
+    asFiled.fact.operands[0].accessionNumber,
+    "0000320193-25-000057",
+  );
+});
+
+test("PR-01 refuses conflicting equal-source direct facts but accepts identical duplicates", async () => {
+  const data = await fixture("apple-companyfacts-fy2025.json");
+  const anomaly = await fixture("selection-anomalies.json");
+  const submissions = await fixture("apple-submissions-fy2025.json");
+  const period = determineFiscalPeriod(
+    normalizeColumns(submissions.filings.recent, "0000320193"),
+    2025,
+    2,
+  );
+  const rows =
+    data.facts["us-gaap"].RevenueFromContractWithCustomerExcludingAssessedTax
+      .units.USD;
+  const original = rows.find(
+    (x) =>
+      x.start === period.start &&
+      x.end === period.end &&
+      x.accn === period.filingAccession,
+  );
+  rows.push({ ...original });
+  let result = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { revision: "asFiled", trace: true },
+  );
+  assert.equal(result.fact.exactValue, "95359000000");
+  assert.ok(
+    result.candidates.some((x) => x.reason === "duplicate identical fact"),
+  );
+  rows.push({ ...original, val: anomaly.conflictingDirectValue });
+  result = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { revision: "asFiled", trace: true },
+  );
+  assert.equal(result.fact, null);
+  assert.equal(result.failureCode, "CONFLICTING_FACTS");
+  assert.ok(
+    result.candidates.some((x) => x.reason === "conflicting equal-source fact"),
+  );
+});
+
+test("PR-01 statement exposes a stable missing code and losing candidates", async () => {
+  const url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const data = await fixture("apple-companyfacts-fy2025.json");
+  const anomaly = await fixture("selection-anomalies.json");
+  const rows =
+    data.facts["us-gaap"].RevenueFromContractWithCustomerExcludingAssessedTax
+      .units.USD;
+  const original = rows.find(
+    (x) =>
+      x.start === "2024-12-29" &&
+      x.end === "2025-03-29" &&
+      x.accn === "0000320193-25-000057",
+  );
+  rows.push({ ...original, val: anomaly.conflictingDirectValue });
+  const { edgar } = client({
+    [url]: () =>
+      new Response(JSON.stringify(data), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  const result = await edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    fiscalQuarter: 2,
+    revision: "asFiled",
+    trace: true,
+  });
+  assert.equal(result.values.revenue, null);
+  assert.equal(result.coverage.missingCodes.revenue, "CONFLICTING_FACTS");
+  assert.match(result.coverage.missingReasons.revenue, /conflict/i);
+  assert.ok(
+    result.selectionTraces.revenue.some(
+      (x) => x.reason === "conflicting equal-source fact",
+    ),
+  );
+});
+
+test("PR-01 latest direct revision ranks across approved aliases; asFiled keeps target filing", async () => {
+  const data = await fixture("apple-companyfacts-fy2025.json");
+  const anomaly = await fixture("selection-anomalies.json");
+  const submissions = await fixture("apple-submissions-fy2025.json");
+  const period = determineFiscalPeriod(
+    normalizeColumns(submissions.filings.recent, "0000320193"),
+    2025,
+    2,
+  );
+  data.facts["us-gaap"].Revenues = {
+    units: { USD: [anomaly.alternateDirectRevision] },
+  };
+  const latest = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { trace: true },
+  );
+  assert.equal(latest.fact.exactValue, "96000000000");
+  assert.equal(latest.fact.tag, "Revenues");
+  assert.ok(
+    latest.candidates.some(
+      (x) =>
+        x.tag === "RevenueFromContractWithCustomerExcludingAssessedTax" &&
+        x.reason === "lower ranked exact-period fact",
+    ),
+  );
+  const asFiled = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { revision: "asFiled" },
+  );
+  assert.equal(asFiled.fact.exactValue, "95359000000");
+  assert.equal(asFiled.fact.source.accessionNumber, period.filingAccession);
+});
+
+test("PR-01 refuses conflicting YTD operands instead of subtracting them", async () => {
+  const data = await fixture("apple-companyfacts-fy2025.json");
+  const anomaly = await fixture("selection-anomalies.json");
+  const submissions = await fixture("apple-submissions-fy2025.json");
+  const period = determineFiscalPeriod(
+    normalizeColumns(submissions.filings.recent, "0000320193"),
+    2025,
+    2,
+  );
+  const rows =
+    data.facts["us-gaap"].RevenueFromContractWithCustomerExcludingAssessedTax
+      .units.USD;
+  const later = rows.find(
+    (x) =>
+      x.start === period.fiscalStart &&
+      x.end === period.end &&
+      x.accn === "0000320193-26-000013",
+  );
+  data.facts[
+    "us-gaap"
+  ].RevenueFromContractWithCustomerExcludingAssessedTax.units.USD = rows.filter(
+    (x) => !(x.start === period.start && x.end === period.end),
+  );
+  data.facts[
+    "us-gaap"
+  ].RevenueFromContractWithCustomerExcludingAssessedTax.units.USD.push({
+    ...later,
+    val: anomaly.conflictingYtdValue,
+  });
+  const result = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { trace: true },
+  );
+  assert.equal(result.fact, null);
+  assert.equal(result.failureCode, "CONFLICTING_FACTS");
+  assert.ok(
+    result.candidates.some((x) => x.reason === "conflicting equal-source fact"),
+  );
+});
+
+test("PR-01 trace explains facts excluded by asOf", async () => {
+  const data = await fixture("apple-companyfacts-fy2025.json");
+  const submissions = await fixture("apple-submissions-fy2025.json");
+  const period = determineFiscalPeriod(
+    normalizeColumns(submissions.filings.recent, "0000320193"),
+    2025,
+    2,
+  );
+  const result = selectFactResult(
+    data,
+    "0000320193",
+    period,
+    incomeMappings.revenue,
+    "income",
+    { asOf: "2025-05-02", trace: true },
+  );
+  assert.equal(result.fact.exactValue, "95359000000");
+  assert.ok(
+    result.candidates.some(
+      (x) => x.filed === "2026-05-01" && x.reason === "filed after asOf",
     ),
   );
 });

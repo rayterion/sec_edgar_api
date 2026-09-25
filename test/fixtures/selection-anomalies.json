@@ -1,0 +1,25 @@
+{
+  "baseFixture": "apple-companyfacts-fy2025.json",
+  "latePriorRevision": {
+    "start": "2024-09-29",
+    "end": "2024-12-28",
+    "val": 130000000000,
+    "accn": "0000320193-26-000099",
+    "fy": 2026,
+    "fp": "Q1",
+    "form": "10-Q/A",
+    "filed": "2026-06-01"
+  },
+  "conflictingDirectValue": 99999999999,
+  "alternateDirectRevision": {
+    "start": "2024-12-29",
+    "end": "2025-03-29",
+    "val": 96000000000,
+    "accn": "0000320193-26-000099",
+    "fy": 2026,
+    "fp": "Q2",
+    "form": "10-Q/A",
+    "filed": "2026-09-01"
+  },
+  "conflictingYtdValue": 220000000000
+}
