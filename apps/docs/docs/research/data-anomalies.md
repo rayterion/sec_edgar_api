@@ -18,3 +18,7 @@
 | BayFirst 2025 10-K/A changes annual net income and assets | `bayfirst-amended-fy2025-*` | Latest amendment wins; `asFiled` and `asOf` recover original | Tested 2026-09-24 |
 
 The synthetic fixtures are marked as such in the manifest. SEC corrections and deletions can make cached data stale; default TTLs are finite.
+
+| Synthetic late Q1 amendment after an Apple comparative Q2 YTD filing | `selection-anomalies.json` overlay on recorded Apple company facts | Refuse cross-revision subtraction with `INCOMPATIBLE_REVISIONS`; `asOf` and `asFiled` retain compatible pairs | Tested 2026-09-24; synthetic, not an SEC observation |
+| Synthetic duplicate and conflicting values in one source/context | `selection-anomalies.json` overlay | Accept identical duplicates; refuse differing direct or YTD values with `CONFLICTING_FACTS` | Tested 2026-09-24; synthetic, not an SEC observation |
+| Synthetic later direct revision under an alternate approved tag | `selection-anomalies.json` overlay | `latest` selects later direct fact across aliases; `asFiled` retains target filing | Tested 2026-09-24; synthetic, not an SEC observation |

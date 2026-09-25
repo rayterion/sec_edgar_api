@@ -2,6 +2,7 @@ import { subtractDecimal } from "./decimal.js";
 import type { FiscalPeriod } from "./periods.js";
 import type { CompanyFacts } from "../xbrl/index.js";
 import type { FieldMapping } from "./mapping.js";
+
 export interface Operand {
   exactValue: string;
   start?: string;
@@ -9,6 +10,16 @@ export interface Operand {
   accessionNumber: string;
   filed: string;
   url: string;
+}
+export interface CandidateTrace {
+  accessionNumber: string;
+  filed: string;
+  start?: string;
+  end: string;
+  taxonomy: string;
+  tag: string;
+  exactValue: string;
+  reason: string;
 }
 export interface SelectedFact {
   exactValue: string;
@@ -20,14 +31,23 @@ export interface SelectedFact {
   end: string;
   source: { accessionNumber: string; form: string; filed: string; url: string };
   operands?: [Operand, Operand];
-  candidates?: Array<{
-    accessionNumber: string;
-    filed: string;
-    start?: string;
-    end: string;
-    reason: string;
-  }>;
+  candidates?: CandidateTrace[];
 }
+export type SelectionFailureCode =
+  "NO_COMPATIBLE_FACT" | "CONFLICTING_FACTS" | "INCOMPATIBLE_REVISIONS";
+export type SelectionResult =
+  | {
+      fact: SelectedFact;
+      candidates: CandidateTrace[];
+      failureCode?: never;
+      reason?: never;
+    }
+  | {
+      fact: null;
+      candidates: CandidateTrace[];
+      failureCode: SelectionFailureCode;
+      reason: string;
+    };
 export interface SelectionOptions {
   asOf?: string;
   revision?: "latest" | "asFiled";
@@ -41,7 +61,15 @@ interface Candidate {
   accn: string;
   form: string;
   filed: string;
+  fy?: number;
+  fp?: string;
   frame?: string;
+}
+interface ConceptCandidates {
+  taxonomy: string;
+  tag: string;
+  candidates: Candidate[];
+  excluded: Array<{ row: Candidate; reason: string }>;
 }
 const forms = new Set([
   "10-Q",
@@ -82,11 +110,11 @@ function rank(
   policy: "latest" | "asFiled",
   accession: string,
 ): number {
-  const exactA = a.accn === accession ? 1 : 0,
-    exactB = b.accn === accession ? 1 : 0;
+  const exactA = a.accn === accession ? 1 : 0;
+  const exactB = b.accn === accession ? 1 : 0;
   if (policy === "asFiled" && exactA !== exactB) return exactB - exactA;
-  const formA = forms.has(a.form) ? 1 : 0,
-    formB = forms.has(b.form) ? 1 : 0;
+  const formA = forms.has(a.form) ? 1 : 0;
+  const formB = forms.has(b.form) ? 1 : 0;
   if (formA !== formB) return formB - formA;
   const date =
     policy === "latest"
@@ -99,6 +127,266 @@ function rank(
       : a.accn.localeCompare(b.accn))
   );
 }
+function sameSource(a: Candidate, b: Candidate): boolean {
+  return (
+    a.accn === b.accn &&
+    a.filed === b.filed &&
+    a.form === b.form &&
+    a.start === b.start &&
+    a.end === b.end
+  );
+}
+function conflicting(source: Candidate, rows: Candidate[]): boolean {
+  return (
+    new Set(
+      rows
+        .filter((row) => sameSource(row, source))
+        .map((row) => String(row.val)),
+    ).size > 1
+  );
+}
+function trace(
+  concepts: ConceptCandidates[],
+  enabled: boolean | undefined,
+  describe: (row: Candidate, taxonomy: string, tag: string) => string,
+): CandidateTrace[] {
+  if (!enabled) return [];
+  return concepts.flatMap(({ taxonomy, tag, candidates, excluded }) =>
+    [
+      ...candidates.map((row) => ({
+        row,
+        reason: describe(row, taxonomy, tag),
+      })),
+      ...excluded,
+    ].map(({ row, reason }) => ({
+      accessionNumber: row.accn,
+      filed: row.filed,
+      ...(row.start ? { start: row.start } : {}),
+      end: row.end,
+      taxonomy,
+      tag,
+      exactValue: String(row.val),
+      reason,
+    })),
+  );
+}
+function failure(
+  failureCode: SelectionFailureCode,
+  reason: string,
+  candidates: CandidateTrace[],
+): SelectionResult {
+  return { fact: null, failureCode, reason, candidates };
+}
+export function selectFactResult(
+  data: CompanyFacts,
+  cik: string,
+  period: FiscalPeriod,
+  mapping: FieldMapping,
+  statementKind: "income" | "balance" | "cashFlow",
+  options: SelectionOptions = {},
+): SelectionResult {
+  const unit = options.unit ?? "USD";
+  const policy = options.revision ?? "latest";
+  const concepts: ConceptCandidates[] = mapping.tags.map((concept) => {
+    const [taxonomy, tag] = concept.split(":") as [string, string];
+    const all = factsFor(data, taxonomy, tag, unit);
+    return {
+      taxonomy,
+      tag,
+      candidates: all.filter(
+        (row) =>
+          forms.has(row.form) && (!options.asOf || row.filed <= options.asOf),
+      ),
+      excluded: all
+        .filter(
+          (row) =>
+            !forms.has(row.form) ||
+            (options.asOf !== undefined && row.filed > options.asOf),
+        )
+        .map((row) => ({
+          row,
+          reason:
+            options.asOf && row.filed > options.asOf
+              ? "filed after asOf"
+              : "unsupported form",
+        })),
+    };
+  });
+  // Exact direct periods outrank every derived value. Revision rank crosses
+  // approved aliases; mapping order breaks equal-source/equal-date ties.
+  const direct = concepts
+    .flatMap((concept, aliasIndex) =>
+      concept.candidates
+        .filter(
+          (row) =>
+            row.end === period.end &&
+            (statementKind === "balance"
+              ? row.start === undefined
+              : row.start === period.start),
+        )
+        .map((row) => ({ row, concept, aliasIndex })),
+    )
+    .sort(
+      (a, b) =>
+        rank(a.row, b.row, policy, period.filingAccession) ||
+        a.aliasIndex - b.aliasIndex,
+    );
+  const directWinner = direct[0];
+  if (directWinner) {
+    const { row: winner, concept } = directWinner;
+    const sameAlias = direct
+      .filter((entry) => entry.concept === concept)
+      .map((entry) => entry.row);
+    const hasConflict = conflicting(winner, sameAlias);
+    const candidates = trace(concepts, options.trace, (row, taxonomy, tag) => {
+      if (
+        taxonomy === concept.taxonomy &&
+        tag === concept.tag &&
+        sameSource(row, winner)
+      )
+        return hasConflict
+          ? "conflicting equal-source fact"
+          : row === winner
+            ? "selected direct fact"
+            : "duplicate identical fact";
+      if (
+        row.end === period.end &&
+        (statementKind === "balance"
+          ? row.start === undefined
+          : row.start === period.start)
+      )
+        return "lower ranked exact-period fact";
+      return "different period";
+    });
+    if (hasConflict)
+      return failure(
+        "CONFLICTING_FACTS",
+        `Conflicting equal-source values for ${concept.taxonomy}:${concept.tag} in ${winner.accn}`,
+        candidates,
+      );
+    const fact = makeSelected(
+      winner,
+      cik,
+      concept.taxonomy,
+      concept.tag,
+      unit,
+      "reported",
+      options.trace ? candidates : undefined,
+    );
+    return { fact, candidates };
+  }
+  if (
+    statementKind !== "balance" &&
+    mapping.additive &&
+    period.kind === "quarter" &&
+    period.fiscalQuarter &&
+    period.fiscalQuarter > 1 &&
+    period.fiscalStart &&
+    period.priorEnd
+  ) {
+    for (const concept of concepts) {
+      const laterRows = concept.candidates
+        .filter(
+          (row) => row.start === period.fiscalStart && row.end === period.end,
+        )
+        .sort((a, b) => rank(a, b, policy, period.filingAccession));
+      const earlierRows = concept.candidates.filter(
+        (row) =>
+          row.start === period.fiscalStart && row.end === period.priorEnd,
+      );
+      const later = laterRows[0];
+      if (!later || !earlierRows.length) continue;
+      const sameCohort = earlierRows.filter(
+        (row) =>
+          row.accn === later.accn ||
+          (Number.isInteger(later.fy) &&
+            Number.isInteger(row.fy) &&
+            row.fy === later.fy),
+      );
+      const earlier = sameCohort.sort(
+        (a, b) =>
+          (a.accn === later.accn ? -1 : 0) - (b.accn === later.accn ? -1 : 0) ||
+          rank(a, b, policy, period.filingAccession),
+      )[0];
+      const candidates = trace(
+        concepts,
+        options.trace,
+        (row, taxonomy, tag) => {
+          if (taxonomy !== concept.taxonomy || tag !== concept.tag)
+            return "different alias";
+          if (sameSource(row, later))
+            return conflicting(later, laterRows)
+              ? "conflicting equal-source fact"
+              : row === later
+                ? "later YTD operand"
+                : "duplicate identical fact";
+          if (earlier && sameSource(row, earlier))
+            return conflicting(earlier, earlierRows)
+              ? "conflicting equal-source fact"
+              : row === earlier && earlier.filed <= later.filed
+                ? "prior YTD operand"
+                : row === earlier
+                  ? "incompatible revision candidate"
+                  : "duplicate identical fact";
+          if (earlierRows.includes(row))
+            return "incompatible or lower-ranked prior YTD fact";
+          if (laterRows.includes(row)) return "lower-ranked later YTD fact";
+          return "different period";
+        },
+      );
+      if (
+        conflicting(later, laterRows) ||
+        (earlier && conflicting(earlier, earlierRows))
+      )
+        return failure(
+          "CONFLICTING_FACTS",
+          `Conflicting equal-source year-to-date values for ${concept.taxonomy}:${concept.tag}`,
+          candidates,
+        );
+      if (!earlier)
+        return failure(
+          "INCOMPATIBLE_REVISIONS",
+          `No prior YTD fact shares the filing fiscal-year cohort of later ${concept.taxonomy}:${concept.tag} fact ${later.accn}`,
+          candidates,
+        );
+      if (earlier.filed > later.filed)
+        return failure(
+          "INCOMPATIBLE_REVISIONS",
+          `A newer prior YTD revision was filed after the selected later YTD fact ${later.accn}; no coherent pair is available`,
+          candidates,
+        );
+      const fact = makeSelected(
+        later,
+        cik,
+        concept.taxonomy,
+        concept.tag,
+        unit,
+        "derived",
+        options.trace ? candidates : undefined,
+      );
+      fact.exactValue = subtractDecimal(String(later.val), String(earlier.val));
+      fact.start = period.start;
+      fact.operands = [later, earlier].map((row) => ({
+        exactValue: String(row.val),
+        start: row.start,
+        end: row.end,
+        accessionNumber: row.accn,
+        filed: row.filed,
+        url: filingUrl(cik, row.accn),
+      })) as [Operand, Operand];
+      return { fact, candidates };
+    }
+  }
+  return failure(
+    "NO_COMPATIBLE_FACT",
+    "No exact reported fact or compatible additive year-to-date pair was available",
+    trace(
+      concepts,
+      options.trace,
+      () => "different period or unsupported context",
+    ),
+  );
+}
 export function selectFact(
   data: CompanyFacts,
   cik: string,
@@ -107,100 +395,8 @@ export function selectFact(
   statementKind: "income" | "balance" | "cashFlow",
   options: SelectionOptions = {},
 ): SelectedFact | null {
-  const unit = options.unit ?? "USD";
-  const policy = options.revision ?? "latest";
-  const concepts = mapping.tags.map((concept) => {
-    const [taxonomy, tag] = concept.split(":") as [string, string];
-    const candidates = factsFor(data, taxonomy, tag, unit).filter(
-      (x) => forms.has(x.form) && (!options.asOf || x.filed <= options.asOf),
-    );
-    return { taxonomy, tag, candidates };
-  });
-  // A direct exact-period fact wins before any mapping alias is considered for derivation.
-  for (const { taxonomy, tag, candidates } of concepts) {
-    const target = candidates
-      .filter(
-        (x) =>
-          x.end === period.end &&
-          (statementKind === "balance"
-            ? x.start === undefined
-            : x.start === period.start),
-      )
-      .sort((a, b) => rank(a, b, policy, period.filingAccession));
-    const selected = target[0];
-    if (!selected) continue;
-    const trace = options.trace
-      ? candidates.map((x) => ({
-          accessionNumber: x.accn,
-          filed: x.filed,
-          start: x.start,
-          end: x.end,
-          reason:
-            x === selected
-              ? "selected direct fact"
-              : target.includes(x)
-                ? "lower ranked exact-period fact"
-                : "different period",
-        }))
-      : undefined;
-    return makeSelected(selected, cik, taxonomy, tag, unit, "reported", trace);
-  }
-  if (
-    statementKind === "balance" ||
-    !mapping.additive ||
-    period.kind !== "quarter" ||
-    !period.fiscalQuarter ||
-    period.fiscalQuarter <= 1 ||
-    !period.fiscalStart ||
-    !period.priorEnd
-  )
-    return null;
-  for (const { taxonomy, tag, candidates } of concepts) {
-    const later = candidates
-      .filter((x) => x.start === period.fiscalStart && x.end === period.end)
-      .sort((a, b) => rank(a, b, policy, period.filingAccession))[0];
-    const earlier = candidates
-      .filter(
-        (x) => x.start === period.fiscalStart && x.end === period.priorEnd,
-      )
-      .sort((a, b) => rank(a, b, policy, period.filingAccession))[0];
-    if (!later || !earlier) continue;
-    const trace = options.trace
-      ? candidates.map((x) => ({
-          accessionNumber: x.accn,
-          filed: x.filed,
-          start: x.start,
-          end: x.end,
-          reason:
-            x === later
-              ? "later YTD operand"
-              : x === earlier
-                ? "prior YTD operand"
-                : "different period or lower rank",
-        }))
-      : undefined;
-    const result = makeSelected(
-      later,
-      cik,
-      taxonomy,
-      tag,
-      unit,
-      "derived",
-      trace,
-    );
-    result.exactValue = subtractDecimal(String(later.val), String(earlier.val));
-    result.start = period.start;
-    result.operands = [later, earlier].map((x) => ({
-      exactValue: String(x.val),
-      start: x.start,
-      end: x.end,
-      accessionNumber: x.accn,
-      filed: x.filed,
-      url: filingUrl(cik, x.accn),
-    })) as [Operand, Operand];
-    return result;
-  }
-  return null;
+  return selectFactResult(data, cik, period, mapping, statementKind, options)
+    .fact;
 }
 function filingUrl(cik: string, accession: string): string {
   return `https://www.sec.gov/Archives/edgar/data/${Number(cik)}/${accession.replaceAll("-", "")}/${accession}.txt`;
@@ -212,7 +408,7 @@ function makeSelected(
   tag: string,
   unit: string,
   status: "reported" | "derived",
-  candidates?: SelectedFact["candidates"],
+  candidates?: CandidateTrace[],
 ): SelectedFact {
   return {
     exactValue: String(value.val),

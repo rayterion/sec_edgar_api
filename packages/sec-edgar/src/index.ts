@@ -22,7 +22,12 @@ export type { CompanyFacts, Taxonomy } from "./xbrl/index.js";
 export type { FinancialQuery, Statement } from "./financials/index.js";
 export type { FiscalPeriod } from "./financials/periods.js";
 export { determineFiscalPeriod } from "./financials/periods.js";
-export { selectFact } from "./financials/selection.js";
+export { selectFact, selectFactResult } from "./financials/selection.js";
+export type {
+  CandidateTrace,
+  SelectionFailureCode,
+  SelectionResult,
+} from "./financials/selection.js";
 export { parseXbrlInstance } from "./parsers/xbrl.js";
 export type { FilingXbrlFact } from "./parsers/xbrl.js";
 export { subtractDecimal, safeNumber } from "./financials/decimal.js";

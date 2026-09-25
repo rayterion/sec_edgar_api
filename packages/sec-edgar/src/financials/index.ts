@@ -12,8 +12,13 @@ import {
 } from "./mapping.js";
 import { determineFiscalPeriod } from "./periods.js";
 import type { FiscalPeriod } from "./periods.js";
-import { selectFact } from "./selection.js";
-import type { SelectedFact, SelectionOptions } from "./selection.js";
+import { selectFactResult } from "./selection.js";
+import type {
+  CandidateTrace,
+  SelectedFact,
+  SelectionFailureCode,
+  SelectionOptions,
+} from "./selection.js";
 import { safeNumber } from "./decimal.js";
 export type FinancialQuery = CompanyIdentifier & {
   fiscalYear: number;
@@ -36,7 +41,9 @@ export interface Statement {
     status: "complete" | "partial";
     missingFields: string[];
     missingReasons: Record<string, string>;
+    missingCodes: Record<string, SelectionFailureCode>;
   };
+  selectionTraces?: Record<string, CandidateTrace[]>;
   warnings: string[];
   unmappedConcepts: string[];
 }
@@ -104,9 +111,11 @@ export class FinancialsApi {
     const details: Statement["details"] = {};
     const missingFields: string[] = [];
     const missingReasons: Record<string, string> = {};
+    const missingCodes: Record<string, SelectionFailureCode> = {};
+    const selectionTraces: Record<string, CandidateTrace[]> = {};
     const warnings: string[] = [];
     for (const [field, mapping] of Object.entries(mappings)) {
-      const detail = selectFact(
+      const selection = selectFactResult(
         facts,
         company.cik,
         period,
@@ -114,12 +123,15 @@ export class FinancialsApi {
         kind,
         options,
       );
+      const detail = selection.fact;
       details[field] = detail;
+      if (query.trace) selectionTraces[field] = selection.candidates;
       if (!detail) {
         values[field] = null;
         missingFields.push(field);
+        missingCodes[field] = selection.failureCode;
         missingReasons[field] =
-          `No compatible ${unit} standard entity-wide fact for ${kind === "balance" ? period.end : `${period.start} to ${period.end}`} among ${mapping.tags.join(", ")}; filing custom or dimensional facts may require separate inspection`;
+          `${selection.reason}; no compatible ${unit} standard entity-wide fact for ${kind === "balance" ? period.end : `${period.start} to ${period.end}`} among ${mapping.tags.join(", ")}; filing custom or dimensional facts may require separate inspection`;
         continue;
       }
       if (query.precision === "string") values[field] = detail.exactValue;
@@ -167,7 +179,9 @@ export class FinancialsApi {
         status: missingFields.length ? "partial" : "complete",
         missingFields,
         missingReasons,
+        missingCodes,
       },
+      ...(query.trace ? { selectionTraces } : {}),
       warnings,
       unmappedConcepts,
     };

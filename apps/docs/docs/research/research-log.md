@@ -45,3 +45,13 @@ A registry GET for `sec-edgar-api` returned HTTP 200 and `@sec-edgar/research-cl
 **Method.** Replayed the recorded Apple submissions fixture with filings after 2025-05-02 excluded. FY2025 Q2 remained observable (2025-03-29 report, filed 2025-05-02), while its FY2025 10-K did not yet exist. The regression test initially failed because period discovery required that later 10-K.
 
 **Finding and decision.** For Q1–Q3 of an open year, anchor the fiscal start to the preceding filed annual report and use quarter reports filed by `asOf`. Annual and Q4 periods still require the target annual report. This is deterministic reconstruction from available metadata, not an SEC historical snapshot. See [ADR 009](../decisions/009-fiscal-period.md).
+
+## 2026-09-24: PR-01 revision compatibility and conflicting facts
+
+**Question and method.** Rechecked the [SEC public XBRL API description](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) and [SEC as-filed data guide](https://www.sec.gov/files/financial-statement-data-sets.pdf). Compared the recorded Apple FY2025 original/Q1–Q3 FY2026 comparative rows and BayFirst original/amended annual rows. Added a manifest-labeled synthetic overlay with a later Q1 amendment, equal-source conflicting values, and an alternate-tag revision; these overlays are tests, not claims about actual Apple filings.
+
+**Finding.** Apple comparative rows for the same economic FY2025 periods can carry filing `fy=2026`, demonstrating that `fy` identifies a filing cycle rather than the fact's economic period. BayFirst's real 10-K/A changes exact-period values. The SEC guide warns that as-filed submissions can contain redundant or inconsistent data. The JSON aggregate does not provide an explicit cross-filing revision graph.
+
+**Decision and verification.** Direct exact-period facts rank across approved aliases by revision policy before any derivation. For additive YTD subtraction, require equal tag/unit/dates, a shared accession or filing `fy` cohort, and prior filing chronology. Conflicting equal-source values or a later prior-boundary amendment make the field unavailable with a stable code and trace. Tests cover real comparative and amended rows plus the synthetic unsafe cases. See [ADR 008](../decisions/008-revision-policy.md) and [ADR 010](../decisions/010-quarter-derivation.md).
+
+**Remaining uncertainty.** Matching filing cohort and chronology cannot prove that separate filings used exactly the same accounting basis. Filing-level validation remains open under PR-05.

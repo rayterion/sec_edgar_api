@@ -30,3 +30,5 @@ Accessed 2026-09-24. URLs are primary sources except where marked ecosystem revi
 
 | BayFirst 2025 10-K/A, SEC | https://www.sec.gov/Archives/edgar/data/1649739/000164973926000049/0001649739-26-000049.txt | Restated annual statements | revision fixture/test |
 | BayFirst company facts, SEC | https://data.sec.gov/api/xbrl/companyfacts/CIK0001649739.json | Changed net income and assets | revision policy |
+
+| Financial Statement Data Sets guide, SEC | https://www.sec.gov/files/financial-statement-data-sets.pdf | As-filed submissions can include amendments, redundancies, and inconsistencies | PR-01 conflict and revision decisions |
