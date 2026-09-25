@@ -21,7 +21,7 @@ Leaves headroom below SEC ten-per-second aggregate guidance.
 
 ## Consequences
 
-Separate processes must coordinate a shared limiter. Revisit this record when new fixtures contradict its assumptions.
+A shared file limiter and pluggable organization-wide limiter are described in [ADR 018](018-shared-traffic.md). Separate machines still need a common coordinator. Revisit this record when new fixtures contradict its assumptions.
 
 ## Evidence
 

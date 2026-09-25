@@ -19,3 +19,6 @@ Every material implementation policy has a dated decision record. Behavior-chang
 - [ADR 015: Reporting currency](015-reporting-currency.md)
 - [ADR 016: Response snapshots and statement audit evidence](016-response-snapshots.md)
 - [ADR 017: Optional balance reconciliation](017-balance-validation.md)
+- [ADR 018: Shared traffic control and bounded resilience](018-shared-traffic.md)
+- [ADR 019: Persistent cache and bounded local bulk import](019-persistent-cache-bulk.md)
+- [ADR 020: Contract and health monitoring](020-operational-monitoring.md)

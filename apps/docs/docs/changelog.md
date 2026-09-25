@@ -4,6 +4,8 @@
 
 Initial ESM API, SEC JSON adapters, archive document discovery, income, balance, and additive cash-flow normalization, exact-value provenance, limited fiscal-quarter derivation, and dated research fixtures. This preview is not a v1 guarantee; see [limitations](guide/limitations.md).
 
+P1 server work added shared traffic coordination, bounded queues and circuits, persistent cache/refresh, local bounded SEC ZIP import, metrics, health alerts, and a separate scheduled live contract check. See the [compatibility matrix](guide/compatibility-matrix.md) and [release report](release-report.md).
+
 P0 reliability work added conservative reporting-currency inference, distinct industry fields, response snapshots and audit metadata, supported Inline XBRL numeric extraction, and optional exact balance reconciliation. The [release report](release-report.md) records verified scope and remaining limitations.
 
 Public canonical field names and error codes follow semantic versioning after v1. Before v1, behavior changes require updated tests, research notes, an architecture decision record, and docs. Docusaurus versioning begins only when separate public API versions need distinct docs.

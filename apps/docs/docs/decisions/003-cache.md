@@ -9,7 +9,7 @@ The public SEC client must expose useful financial data while respecting the end
 
 ## Decision
 
-Use replaceable cache interface; default bounded in-memory cache with endpoint-specific TTL. For exact input replay, use the separate [snapshot record](016-response-snapshots.md); a TTL cache alone is not an audit artifact.
+Use replaceable cache interface; default entry- and byte-bounded in-memory cache with endpoint-specific TTL. Optional atomic `FileCache` adds persistent freshness/provenance metadata and explicit refresh/invalidation; see [ADR 019](019-persistent-cache-bulk.md). For exact input replay, use the separate [snapshot record](016-response-snapshots.md); a TTL cache alone is not an audit artifact.
 
 ## Alternatives considered
 

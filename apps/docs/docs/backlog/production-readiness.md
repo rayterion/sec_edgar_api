@@ -10,16 +10,16 @@ sidebar_position: 1
 
 This is the maintained list of work needed before relying on normalized statements in large server deployments. Each item needs a documented decision, real-response fixtures where SEC behavior is involved, deterministic tests, and an update to the [release report](../release-report.md) when completed. Priority P0 blocks high-stakes use; P1 blocks large-scale service operation. Status is **Open** until its acceptance criteria pass.
 
-| ID    | Priority | Work item                                           | Status |
-| ----- | -------- | --------------------------------------------------- | ------ |
-| PR-01 | P0       | Coherent fact selection and safe quarter derivation | Done   |
-| PR-02 | P0       | Fiscal periods and historical filing coverage       | Done   |
-| PR-03 | P0       | Currency detection and broader statement mappings   | Done   |
-| PR-04 | P0       | Reproducible, auditable data snapshots              | Done   |
-| PR-05 | P0       | Filing-level coverage and financial validation      | Done   |
-| PR-06 | P1       | Server-wide traffic control and resilience          | Open   |
-| PR-07 | P1       | Persistent cache and bulk ingestion strategy        | Open   |
-| PR-08 | P1       | Production-scale verification and monitoring        | Open   |
+| ID    | Priority | Work item                                           | Status                  |
+| ----- | -------- | --------------------------------------------------- | ----------------------- |
+| PR-01 | P0       | Coherent fact selection and safe quarter derivation | Done                    |
+| PR-02 | P0       | Fiscal periods and historical filing coverage       | Done                    |
+| PR-03 | P0       | Currency detection and broader statement mappings   | Done                    |
+| PR-04 | P0       | Reproducible, auditable data snapshots              | Done                    |
+| PR-05 | P0       | Filing-level coverage and financial validation      | Done                    |
+| PR-06 | P1       | Server-wide traffic control and resilience          | Done                    |
+| PR-07 | P1       | Persistent cache and bulk ingestion strategy        | Done                    |
+| PR-08 | P1       | Production-scale verification and monitoring        | Ready; live run pending |
 
 ## PR-01 — Coherent fact selection and safe quarter derivation
 
@@ -67,17 +67,23 @@ The current limiter coordinates one Node process. Large deployments need a share
 
 **Acceptance:** Multi-process load tests keep aggregate requests below the configured organizational limit. Aborted callers leave queues promptly; sustained SEC 429/403/5xx responses do not create unbounded work. Metrics expose queue depth, rate-limit waits, retries, latency, cache hits, and failures. See [rate-limit decision](../decisions/004-rate-limiting.md).
 
+**Implementation evidence (2026-09-25):** Implementation and tests commit `463e8dc`. The shared `FileRateLimiter` passes two-process aggregate-window tests; bounded queues, abortable waits, overload, circuit, rate-spacing, and request metrics pass deterministic tests. The 18-request mocked load stays below nine starts in each rolling second and finishes under ten seconds. An external `SharedRateLimiter` remains required when processes cannot share a reliable filesystem. See [ADR 018](../decisions/018-shared-traffic.md), [server operations](../guide/server-operations.md), and [SEC access research](../research/research-log.md#2026-09-25-pr-0608-server-operation-and-nightly-bulk).
+
 ## PR-07 — Persistent cache and bulk ingestion strategy
 
 The default cache is in memory, bounded by entry count rather than bytes, and uses fixed endpoint TTLs. Provide a production adapter contract with size limits, freshness metadata, explicit invalidation/refresh, and safe behavior when replicas see different versions. For broad historical backfills, research and implement a bounded bulk ingestion workflow separately from ordinary single-company requests. The [SEC describes nightly bulk archives](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) as the efficient large-scale path.
 
 **Acceptance:** Tests cover cache expiry, stale data, correction/removal, concurrent refresh, and maximum memory or storage use. A benchmarked backfill meets a declared throughput target while respecting SEC access limits. See [cache decision](../decisions/003-cache.md) and [endpoint inventory](../research/endpoint-inventory.md).
 
+**Implementation evidence (2026-09-25):** Implementation and tests commit `463e8dc`. Byte-bounded `MemoryCache`, provenance-preserving `FileCache`, explicit refresh, 404 invalidation, and concurrent refresh pass tests. `importBulkZip` validates bounded local ZIPs and can select CIKs; a generated 100-entry ZIP containing recorded submissions payloads imports under two seconds. SEC HEAD/range observations confirm current ZIP sizes and entry counts, but a full official archive was not downloaded. See [ADR 019](../decisions/019-persistent-cache-bulk.md), [cache and bulk guide](../guide/cache-and-bulk.md), and [research](../research/research-log.md#2026-09-25-pr-0608-server-operation-and-nightly-bulk).
+
 ## PR-08 — Production-scale verification and monitoring
 
 The deterministic suite uses a small set of real filers, and the live smoke test is separate from CI. Expand domestic, foreign, industry, amendment, and anomaly fixtures. Add scheduled, rate-limited live contract checks; load and failure-injection tests; performance budgets; and alerts for schema drift, coverage drops, stale data, and repeated SEC access failures. Keep live tests outside ordinary pull-request CI.
 
 **Acceptance:** A documented compatibility matrix names supported filer and filing classes and has passing scenario tests. Scheduled checks report upstream changes without overwhelming SEC hosts. Release gates include the packed-package import, docs build, production dependency review, and measured load behavior. See the [release report](../release-report.md) and [fixture provenance](../research/data-anomalies.md).
+
+**Implementation evidence (2026-09-25):** Implementation and tests commit `463e8dc`. The [compatibility matrix](../guide/compatibility-matrix.md) links domestic, IFRS, industry, amendment, transition, archive, and error fixtures to passing scenarios. Deterministic load and failure-injection tests, health alerts, packed import, docs build, and dependency audit are release gates. A separate weekly live workflow and unit-tested contract check are present. **Activation remains:** provide a genuine `SEC_USER_AGENT` repository secret and observe the first scheduled run; no such contact is available in this checkout. Keep this item open until that external gate passes. See [ADR 020](../decisions/020-operational-monitoring.md) and [monitoring](../guide/monitoring.md).
 
 ## Updating this backlog
 
