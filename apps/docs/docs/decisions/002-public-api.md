@@ -9,7 +9,7 @@ The public SEC client must expose useful financial data while respecting the end
 
 ## Decision
 
-Expose a default factory and named createEdgarClient with companies, filings, xbrl, financials, and raw namespaces.
+Expose a default factory and named `createEdgarClient` with `companies`, `filings`, `xbrl`, `financials`, and `raw` namespaces. Statements can carry a separate industry profile, optional validation, and input audit metadata. A `SecSnapshot` can record and replay the raw responses that support a statement.
 
 ## Alternatives considered
 
@@ -25,4 +25,4 @@ Every new field needs a documented compatibility decision. Revisit this record w
 
 ## Evidence
 
-[Research finding](../research/endpoint-inventory.md); [source register](../research/sources.md).
+[Research finding](../research/endpoint-inventory.md); [financial semantics](../research/financial-semantics.md); [source register](../research/sources.md).

@@ -14,9 +14,9 @@ This is the maintained list of work needed before relying on normalized statemen
 | ----- | -------- | --------------------------------------------------- | ------ |
 | PR-01 | P0       | Coherent fact selection and safe quarter derivation | Done   |
 | PR-02 | P0       | Fiscal periods and historical filing coverage       | Done   |
-| PR-03 | P0       | Currency detection and broader statement mappings   | Open   |
-| PR-04 | P0       | Reproducible, auditable data snapshots              | Open   |
-| PR-05 | P0       | Filing-level coverage and financial validation      | Open   |
+| PR-03 | P0       | Currency detection and broader statement mappings   | Done   |
+| PR-04 | P0       | Reproducible, auditable data snapshots              | Done   |
+| PR-05 | P0       | Filing-level coverage and financial validation      | Done   |
 | PR-06 | P1       | Server-wide traffic control and resilience          | Open   |
 | PR-07 | P1       | Persistent cache and bulk ingestion strategy        | Open   |
 | PR-08 | P1       | Production-scale verification and monitoring        | Open   |
@@ -43,17 +43,23 @@ Normalized statements currently default to USD. Define a verified reporting-curr
 
 **Acceptance:** Real foreign and industry fixtures prove the selected currency and each mapped field's meaning and lineage. Ambiguous or mixed-currency inputs never yield a plausible blended statement. Tests cover missing fields and explicit `unit` overrides. See [mapping decision](../decisions/007-mapping.md) and [financial semantics](../research/financial-semantics.md).
 
+**Completion evidence (2026-09-24):** Implementation, fixtures, and tests commit `eaf5e59`. Recorded SAP EUR plus real JPMorgan bank, Allstate insurer, Realty Income REIT, and ICMB investment-company facts have exact-period and lineage tests. A synthetic second SAP currency and absent-currency case return `AMBIGUOUS_CURRENCY`; an explicit unit remains partial when appropriate. Separate income and balance `industry` fields preserve their accounting meanings. See [ADR 007](../decisions/007-mapping.md), [ADR 015](../decisions/015-reporting-currency.md), and [fixture provenance](../research/data-anomalies.md). Additional sector variants remain in the [limitations](../guide/limitations.md).
+
 ## PR-04 — Reproducible, auditable data snapshots
 
 Record when each SEC response was retrieved, its source URL and content hash, and the mapping and selection-policy versions used for an output. Provide a way to persist or replay the exact inputs behind a financial decision. Document that `asOf` filters currently available facts and filings; it does not recreate an immutable historical SEC snapshot. Define how corrections, removals, and differences between submissions and XBRL update times are detected and surfaced.
 
 **Acceptance:** The same recorded snapshot produces byte-for-byte equivalent financial values and lineage after cache expiry or upstream changes. A changed or removed SEC response is observable, and a caller can distinguish source time, filing time, and evaluation time. See [data anomalies](../research/data-anomalies.md) and [cache decision](../decisions/003-cache.md).
 
+**Completion evidence (2026-09-24):** Implementation, fixtures, and tests commit `eaf5e59`. `SecSnapshot` records bounded response bodies and metadata, serializes to JSON, validates hashes on offline replay, and fails closed on missing URLs. Tests compare byte-for-byte equivalent `values` and `details`, catch tampering, distinguish synthetic changed/removed responses, and flag opaque cached historical metadata as `audit.complete: false`; parsed snapshot responses are isolated from consumer mutation. Source retrieval, filing, and evaluation times are distinct. See [ADR 016](../decisions/016-response-snapshots.md).
+
 ## PR-05 — Filing-level coverage and financial validation
 
 Extend archive parsing beyond supported `_htm.xml` numeric instances to researched Inline XBRL HTML cases. Handle contexts, dimensions, scale, sign, nil values, and custom tags without guessing their canonical meaning. Add optional reconciliation checks, such as assets against liabilities plus equity when all required facts are comparable; report discrepancies rather than changing values.
 
 **Acceptance:** Compact real filing fixtures cover each supported format and variant. Unsupported formats and failed reconciliations carry explicit status and source references. Statement `complete` is documented as canonical-field coverage, never a filing audit. See [endpoint inventory](../research/endpoint-inventory.md), [archive parsing decision](../decisions/011-archive-parsing.md), and [known limitations](../guide/limitations.md).
+
+**Completion evidence (2026-09-24):** Implementation, fixtures, and tests commit `eaf5e59`. Real Apple Inline facts test scale, sign, nil, custom taxonomy, dimensions, and source URL; XML remains supported. A synthetic unsupported transform returns null with explicit status/reason, and a missing context raises `SCHEMA`. The archive adapter falls back to primary Inline HTML when the XML instance is absent. Optional exact balance validation passes for Apple and Realty Income, reports a synthetic discrepancy without changing values, and refuses missing/mixed-revision operands. See [ADR 011](../decisions/011-archive-parsing.md), [ADR 017](../decisions/017-balance-validation.md), and [known limits](../guide/limitations.md).
 
 ## PR-06 — Server-wide traffic control and resilience
 

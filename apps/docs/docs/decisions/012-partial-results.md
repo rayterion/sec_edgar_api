@@ -9,7 +9,7 @@ The public SEC client must expose useful financial data while respecting the end
 
 ## Decision
 
-Return all canonical fields with null for missing facts, coverage status, field-specific missing reasons, and warnings.
+Return all canonical fields with null for missing facts, coverage status, field-specific missing reasons, and warnings. Optional arithmetic validation has a separate status and never changes coverage or source values.
 
 ## Alternatives considered
 

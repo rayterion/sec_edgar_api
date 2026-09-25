@@ -9,7 +9,7 @@ The public SEC client must expose useful financial data while respecting the end
 
 ## Decision
 
-Allowlist filing archive paths and expose document index and bounded text retrieval, and extract numeric `_htm.xml` facts with their XBRL context and units; do not map custom or dimensional facts to canonical fields without a supported policy.
+Allowlist filing archive paths and expose document index and bounded text retrieval. Extract numeric `_htm.xml` facts and supported Inline `ix:nonFraction` HTML facts with context, unit, exact scale/sign, nil, taxonomy, dimensions, status, and source URL. Prefer the XML instance when present; otherwise find the primary HTML document through filing metadata and the archive index. Unsupported Inline transformations or nested numeric content yield null with an explicit reason. Do not map custom or dimensional facts to canonical fields without a researched policy.
 
 ## Alternatives considered
 
@@ -21,7 +21,7 @@ Filing context and dimensions are essential to meaning.
 
 ## Consequences
 
-Inline HTML-only extraction and canonical enrichment remain explicit release blockers. Revisit this record when new fixtures contradict its assumptions.
+Full Inline XBRL conformance, additional transformation registries, continuations, nested facts, and canonical enrichment remain unsupported. The parser depends on `htmlparser2` to handle HTML syntax, while the existing XML parser remains for `_htm.xml`. Revisit this record when new fixtures contradict its assumptions.
 
 ## Evidence
 

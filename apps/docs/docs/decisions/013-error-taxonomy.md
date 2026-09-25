@@ -9,7 +9,7 @@ The public SEC client must expose useful financial data while respecting the end
 
 ## Decision
 
-Use EdgarError with stable code (including DNS, TLS, connection, decompression, redirect, and malformed XML), retryability, URL, HTTP status, and cause.
+Use EdgarError with stable code (including DNS, TLS, connection, decompression, redirect, malformed XML, ambiguous currency, and snapshot miss/integrity), retryability, URL, HTTP status, and cause.
 
 ## Alternatives considered
 
