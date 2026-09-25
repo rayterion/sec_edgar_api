@@ -220,6 +220,106 @@
       "accessionNumber": null,
       "redactions": "Selected real FY2024/FY2025 revenue and assets facts; other concepts and dates removed.",
       "tests": "Fiscal label/calendar mismatch, annual and quarterly revenue"
+    },
+    {
+      "file": "jpm-bank-fy2025-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0000019617.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000019617",
+      "accessionNumber": null,
+      "redactions": "Only selected annual and transition filing rows retained; other recent/history rows removed.",
+      "tests": "JPMorgan bank, FY2025 10-K and exact annual concepts"
+    },
+    {
+      "file": "jpm-bank-fy2025-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000019617.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000019617",
+      "accessionNumber": null,
+      "redactions": "Only selected exact-period standard income and balance concepts retained, including the tested industry instant fact; other concepts/periods removed.",
+      "tests": "JPMorgan bank, FY2025 10-K and exact annual concepts"
+    },
+    {
+      "file": "allstate-insurance-fy2025-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0000899051.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000899051",
+      "accessionNumber": null,
+      "redactions": "Only selected annual and transition filing rows retained; other recent/history rows removed.",
+      "tests": "Allstate insurer, FY2024/25 10-K and premium facts"
+    },
+    {
+      "file": "allstate-insurance-fy2025-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000899051.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000899051",
+      "accessionNumber": null,
+      "redactions": "Only selected exact-period standard income and balance concepts retained, including the tested industry instant fact; other concepts/periods removed.",
+      "tests": "Allstate insurer, FY2024/25 10-K and premium facts"
+    },
+    {
+      "file": "realty-income-reit-fy2025-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0000726728.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000726728",
+      "accessionNumber": null,
+      "redactions": "Only selected annual and transition filing rows retained; other recent/history rows removed.",
+      "tests": "Realty Income REIT, FY2024/25 10-K and lease/equity facts"
+    },
+    {
+      "file": "realty-income-reit-fy2025-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000726728.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000726728",
+      "accessionNumber": null,
+      "redactions": "Only selected exact-period standard income and balance concepts retained, including the tested industry instant fact; other concepts/periods removed.",
+      "tests": "Realty Income REIT, FY2024/25 10-K and lease/equity facts"
+    },
+    {
+      "file": "icmb-fund-fy2025-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0001578348.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001578348",
+      "accessionNumber": null,
+      "redactions": "Only selected annual and transition filing rows retained; other recent/history rows removed.",
+      "tests": "ICMB investment company, FY2024 transition and FY2025 annual facts"
+    },
+    {
+      "file": "icmb-fund-fy2025-companyfacts.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001578348.json",
+      "retrieved": "2026-09-24",
+      "cik": "0001578348",
+      "accessionNumber": null,
+      "redactions": "Only selected exact-period standard income and balance concepts retained, including the tested industry instant fact; other concepts/periods removed.",
+      "tests": "ICMB investment company, FY2024 transition and FY2025 annual facts"
+    },
+    {
+      "file": "jpm-bank-fy2025-older-submissions.json",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://data.sec.gov/submissions/CIK0000019617-submissions-007.json",
+      "retrieved": "2026-09-24",
+      "cik": "0000019617",
+      "accessionNumber": "0000019617-25-000270",
+      "redactions": "One real FY2024 10-K column row retained from historical file; other rows removed.",
+      "tests": "Bank FY2025 prior annual boundary and historical metadata"
+    },
+    {
+      "file": "apple-q2-inline-excerpt.html",
+      "kind": "SEC excerpt",
+      "sourceUrl": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm",
+      "retrieved": "2026-09-24",
+      "cik": "0000320193",
+      "accessionNumber": "0000320193-25-000057",
+      "redactions": "Five original ix:nonFraction tags, four complete original contexts and USD unit are wrapped in a minimal HTML document; surrounding presentation and other facts removed. The wrapper is constructed, the retained tags and resources are unmodified.",
+      "tests": "Inline XBRL scale, sign, nil, custom tag, dimensional context and source URL"
     }
   ]
 }

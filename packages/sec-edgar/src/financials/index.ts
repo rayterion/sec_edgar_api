@@ -5,11 +5,19 @@ import { CompaniesApi } from "../companies/index.js";
 import { FilingsApi } from "../filings/index.js";
 import { XbrlApi } from "../xbrl/index.js";
 import type { RequestOptions } from "../transport/index.js";
+import type { SecTransport } from "../transport/index.js";
+import type { ResponseEvidence } from "../transport/snapshot.js";
+export const CANONICAL_MAPPING_VERSION = "canonical-1";
+export const SELECTION_POLICY_VERSION = "selection-2";
 import {
   balanceMappings,
   cashFlowMappings,
   incomeMappings,
+  industryMappings,
+  industryBalanceMappings,
 } from "./mapping.js";
+import type { IndustryProfile } from "./mapping.js";
+import { detectCurrency } from "./currency.js";
 import { determineFiscalPeriod } from "./periods.js";
 import type { FiscalPeriod } from "./periods.js";
 import { selectFactResult } from "./selection.js";
@@ -20,6 +28,8 @@ import type {
   SelectionOptions,
 } from "./selection.js";
 import { safeNumber } from "./decimal.js";
+import { validateBalance } from "./validation.js";
+import type { StatementValidation } from "./validation.js";
 export type FinancialQuery = CompanyIdentifier & {
   fiscalYear: number;
   fiscalQuarter?: number;
@@ -29,12 +39,20 @@ export type FinancialQuery = CompanyIdentifier & {
   unit?: string;
   precision?: "number" | "string";
   trace?: boolean;
+  validate?: boolean;
   signal?: AbortSignal;
 };
 export interface Statement {
   company: Company;
   period: FiscalPeriod;
   currency: string;
+  audit: {
+    evaluatedAt: string;
+    mappingVersion: string;
+    selectionPolicyVersion: string;
+    complete: boolean;
+    inputs: ResponseEvidence[];
+  };
   values: Record<string, number | string | null>;
   details: Record<string, SelectedFact | null>;
   coverage: {
@@ -44,6 +62,13 @@ export interface Statement {
     missingCodes: Record<string, SelectionFailureCode>;
   };
   selectionTraces?: Record<string, CandidateTrace[]>;
+  validation?: StatementValidation;
+  industry?: {
+    profile: IndustryProfile;
+    values: Record<string, number | string | null>;
+    details: Record<string, SelectedFact | null>;
+    missingFields: string[];
+  };
   warnings: string[];
   unmappedConcepts: string[];
 }
@@ -52,6 +77,7 @@ export class FinancialsApi {
     private companies: CompaniesApi,
     private filings: FilingsApi,
     private xbrl: XbrlApi,
+    private transport: SecTransport,
   ) {}
   private async statement(
     query: FinancialQuery,
@@ -81,6 +107,14 @@ export class FinancialsApi {
         query.fiscalYear <= 2100,
       "Invalid fiscal year",
     );
+    assertInput(
+      query.validate === undefined || typeof query.validate === "boolean",
+      "Invalid validate option",
+    );
+    assertInput(
+      !query.validate || kind === "balance",
+      "validate is available for balance sheets",
+    );
     const identifier =
       query.ticker !== undefined
         ? { ticker: query.ticker }
@@ -105,7 +139,7 @@ export class FinancialsApi {
       query.asOf,
       query.periodEnd,
     );
-    const unit = query.unit ?? "USD";
+    const unit = query.unit ?? detectCurrency(facts, period, query.asOf);
     const options: SelectionOptions = {
       asOf: query.asOf,
       revision: query.revision,
@@ -158,6 +192,68 @@ export class FinancialsApi {
           `${field} was derived from compatible year-to-date facts`,
         );
     }
+    const industryMappingsForKind =
+      kind === "income"
+        ? industryMappings
+        : kind === "balance"
+          ? industryBalanceMappings
+          : undefined;
+    const industry = industryMappingsForKind
+      ? (
+          Object.entries(industryMappingsForKind) as [
+            IndustryProfile,
+            Record<string, { tags: readonly string[]; additive: boolean }>,
+          ][]
+        ).find(([, fields]) => {
+          const anchor = Object.values(fields)[0]!;
+          return (
+            selectFactResult(facts, company.cik, period, anchor, kind, options)
+              .fact !== null
+          );
+        })
+      : undefined;
+    const industryResult: Statement["industry"] = industry
+      ? { profile: industry[0], values: {}, details: {}, missingFields: [] }
+      : undefined;
+    if (industryResult && industry) {
+      for (const [field, mapping] of Object.entries(industry[1])) {
+        const detail = selectFactResult(
+          facts,
+          company.cik,
+          period,
+          mapping,
+          kind,
+          options,
+        ).fact;
+        industryResult.details[field] = detail;
+        if (!detail) {
+          industryResult.values[field] = null;
+          industryResult.missingFields.push(field);
+        } else {
+          industryResult.values[field] =
+            query.precision === "string"
+              ? detail.exactValue
+              : safeNumber(detail.exactValue);
+          if (industryResult.values[field] === null)
+            warnings.push(
+              `industry.${field} exceeds safe JavaScript number precision; use its exactValue or precision: 'string'`,
+            );
+          if (detail.status === "derived")
+            warnings.push(
+              `industry.${field} was derived from compatible year-to-date facts`,
+            );
+        }
+      }
+    }
+    const validation = query.validate ? validateBalance(details) : undefined;
+    if (validation?.status === "fail")
+      warnings.push(
+        "Comparable balance facts do not reconcile; values were not changed",
+      );
+    if (validation?.status === "unavailable")
+      warnings.push(
+        `Balance reconciliation unavailable: ${validation.checks[0]?.reason}`,
+      );
     const accessions = new Set(
       Object.values(details)
         .filter((x): x is SelectedFact => x !== null)
@@ -174,16 +270,58 @@ export class FinancialsApi {
       warnings.push(
         "Some canonical fields are unavailable in supported SEC company facts",
       );
-    const mapped = new Set(Object.values(mappings).flatMap((x) => x.tags));
+    const mapped = new Set([
+      ...Object.values(mappings).flatMap((x) => x.tags),
+      ...(industry ? Object.values(industry[1]).flatMap((x) => x.tags) : []),
+    ]);
     const unmappedConcepts = Object.entries(facts.facts)
       .flatMap(([taxonomy, concepts]) =>
         Object.keys(concepts).map((tag) => `${taxonomy}:${tag}`),
       )
       .filter((tag) => !mapped.has(tag));
+    const rootUrl = `https://data.sec.gov/submissions/CIK${company.cik}.json`;
+    const factsUrl = `https://data.sec.gov/api/xbrl/companyfacts/CIK${company.cik}.json`;
+    const lookupUrl = "https://www.sec.gov/files/company_tickers_exchange.json";
+    const inputs = this.transport
+      .observedResponses()
+      .filter(
+        (entry) =>
+          entry.url === lookupUrl ||
+          entry.url === factsUrl ||
+          entry.url === rootUrl ||
+          entry.url.startsWith(
+            `https://data.sec.gov/submissions/CIK${company.cik}-submissions-`,
+          ),
+      );
+    const requiredUrls = new Set([
+      rootUrl,
+      factsUrl,
+      lookupUrl,
+      ...filings.flatMap((filing) =>
+        filing.sourceUrl ? [filing.sourceUrl] : [],
+      ),
+    ]);
+    const complete = [...requiredUrls].every((url) =>
+      inputs.some(
+        (entry) =>
+          entry.url === url && entry.status === 200 && entry.bodyCaptured,
+      ),
+    );
+    if (!complete)
+      warnings.push(
+        "Response hashes are incomplete, possibly because an external cache supplied data without retrieval metadata",
+      );
     return {
       company,
       period,
       currency: unit,
+      audit: {
+        evaluatedAt: new Date().toISOString(),
+        mappingVersion: CANONICAL_MAPPING_VERSION,
+        selectionPolicyVersion: SELECTION_POLICY_VERSION,
+        complete,
+        inputs,
+      },
       values,
       details,
       coverage: {
@@ -193,6 +331,8 @@ export class FinancialsApi {
         missingCodes,
       },
       ...(query.trace ? { selectionTraces } : {}),
+      ...(industryResult ? { industry: industryResult } : {}),
+      ...(validation ? { validation } : {}),
       warnings,
       unmappedConcepts,
     };

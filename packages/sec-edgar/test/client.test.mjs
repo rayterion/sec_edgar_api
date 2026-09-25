@@ -10,6 +10,10 @@ import secEdgar, {
   selectFact,
   selectFactResult,
   incomeMappings,
+  SecSnapshot,
+  parseInlineXbrl,
+  validateBalance,
+  diffSnapshots,
 } from "../dist/index.js";
 const fixture = async (name) =>
   JSON.parse(
@@ -27,6 +31,24 @@ const source = {
     "apple-older-submissions-sample.json",
   "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json":
     "apple-companyfacts-fy2025.json",
+  "https://data.sec.gov/submissions/CIK0000019617.json":
+    "jpm-bank-fy2025-submissions.json",
+  "https://data.sec.gov/submissions/CIK0000019617-submissions-007.json":
+    "jpm-bank-fy2025-older-submissions.json",
+  "https://data.sec.gov/api/xbrl/companyfacts/CIK0000019617.json":
+    "jpm-bank-fy2025-companyfacts.json",
+  "https://data.sec.gov/submissions/CIK0000899051.json":
+    "allstate-insurance-fy2025-submissions.json",
+  "https://data.sec.gov/api/xbrl/companyfacts/CIK0000899051.json":
+    "allstate-insurance-fy2025-companyfacts.json",
+  "https://data.sec.gov/submissions/CIK0000726728.json":
+    "realty-income-reit-fy2025-submissions.json",
+  "https://data.sec.gov/api/xbrl/companyfacts/CIK0000726728.json":
+    "realty-income-reit-fy2025-companyfacts.json",
+  "https://data.sec.gov/submissions/CIK0001578348.json":
+    "icmb-fund-fy2025-submissions.json",
+  "https://data.sec.gov/api/xbrl/companyfacts/CIK0001578348.json":
+    "icmb-fund-fy2025-companyfacts.json",
   "https://data.sec.gov/submissions/CIK0001132105.json":
     "spwh-fy2025-submissions.json",
   "https://data.sec.gov/api/xbrl/companyfacts/CIK0001132105.json":
@@ -38,7 +60,7 @@ const source = {
   "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/index.json":
     "apple-q2-archive-index.json",
 };
-function client(overrides = {}) {
+function client(overrides = {}, options = {}) {
   const seen = [];
   const http = {
     async fetch(url, init) {
@@ -58,6 +80,7 @@ function client(overrides = {}) {
       http,
       retries: 0,
       requestsPerSecond: 9,
+      ...options,
     }),
     seen,
   };
@@ -1190,4 +1213,645 @@ test("PR-02 malformed history range is a schema error", async () => {
     edgar.filings.list({ cik: 320193, from: "2015-01-01", to: "2015-12-31" }),
     { code: "SCHEMA" },
   );
+});
+
+test("PR-03 detects SAP reporting EUR and refuses ambiguous eligible currencies", async () => {
+  const { edgar } = client({
+    "https://data.sec.gov/submissions/CIK0001000184.json": async () =>
+      new Response(
+        JSON.stringify(await fixture("sap-fy2025-ifrs-submissions.json")),
+        {
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    "https://data.sec.gov/api/xbrl/companyfacts/CIK0001000184.json": async () =>
+      new Response(
+        JSON.stringify(await fixture("sap-fy2025-ifrs-companyfacts.json")),
+        {
+          headers: { "content-type": "application/json" },
+        },
+      ),
+  });
+  const income = await edgar.financials.incomeStatement({
+    cik: 1000184,
+    fiscalYear: 2025,
+  });
+  assert.equal(income.currency, "EUR");
+  assert.equal(income.values.revenue, 36800000000);
+  assert.equal(income.details.revenue.unit, "EUR");
+  const usd = await edgar.financials.incomeStatement({
+    cik: 1000184,
+    fiscalYear: 2025,
+    unit: "USD",
+  });
+  assert.equal(usd.currency, "USD");
+  assert.equal(usd.values.revenue, null);
+  const facts = await fixture("sap-fy2025-ifrs-companyfacts.json");
+  facts.facts["ifrs-full"].Revenue.units.USD = [
+    {
+      start: "2025-01-01",
+      end: "2025-12-31",
+      val: 40000000000,
+      accn: "0001104659-26-020058",
+      fy: 2025,
+      fp: "FY",
+      form: "20-F",
+      filed: "2026-02-26",
+    },
+  ];
+  const ambiguous = client({
+    "https://data.sec.gov/submissions/CIK0001000184.json": async () =>
+      new Response(
+        JSON.stringify(await fixture("sap-fy2025-ifrs-submissions.json")),
+        {
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    "https://data.sec.gov/api/xbrl/companyfacts/CIK0001000184.json": () =>
+      new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      }),
+  }).edgar;
+  await assert.rejects(
+    ambiguous.financials.incomeStatement({ cik: 1000184, fiscalYear: 2025 }),
+    {
+      code: "AMBIGUOUS_CURRENCY",
+    },
+  );
+  assert.equal(
+    (
+      await ambiguous.financials.incomeStatement({
+        cik: 1000184,
+        fiscalYear: 2025,
+        unit: "EUR",
+      })
+    ).values.revenue,
+    36800000000,
+  );
+});
+
+test("PR-03 industry profiles use real standard facts without relabeling revenue", async () => {
+  const { edgar } = client();
+  for (const [cik, profile, field, value, tag] of [
+    [
+      19617,
+      "bank",
+      "netInterestIncome",
+      95443000000,
+      "InterestIncomeExpenseNet",
+    ],
+    [899051, "insurance", "premiumsEarned", 61449000000, "PremiumsEarnedNet"],
+    [726728, "reit", "leaseIncome", 5437332000, "LeaseIncome"],
+    [
+      1578348,
+      "investmentCompany",
+      "grossInvestmentIncome",
+      17396235,
+      "GrossInvestmentIncomeOperating",
+    ],
+  ]) {
+    const result = await edgar.financials.incomeStatement({
+      cik,
+      fiscalYear: 2025,
+    });
+    assert.equal(result.currency, "USD");
+    assert.equal(result.industry?.profile, profile);
+    assert.equal(result.industry.values[field], value);
+    assert.equal(result.industry.details[field].tag, tag);
+    assert.equal(result.industry.details[field].source.form, "10-K");
+  }
+  const fund = await edgar.financials.incomeStatement({
+    cik: 1578348,
+    fiscalYear: 2025,
+  });
+  assert.equal(fund.values.revenue, null);
+  assert.equal(fund.industry.values.grossInvestmentIncome, 17396235);
+});
+
+test("PR-04 recorded raw SEC inputs replay exact financial values and lineage offline", async () => {
+  const recording = new SecSnapshot();
+  const first = await client(
+    {},
+    { snapshot: recording },
+  ).edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    fiscalQuarter: 2,
+  });
+  const artifact = JSON.parse(JSON.stringify(recording.export()));
+  assert.ok(artifact.entries.length >= 3);
+  assert.ok(
+    artifact.entries.every((entry) =>
+      /^https:\/\/(?:data|www)\.sec\.gov\//.test(entry.url),
+    ),
+  );
+  assert.ok(
+    artifact.entries.every(
+      (entry) =>
+        /^\d{4}-\d\d-\d\dT/.test(entry.retrievedAt) &&
+        /^[a-f0-9]{64}$/.test(entry.sha256),
+    ),
+  );
+  assert.ok(
+    first.audit.inputs.some((entry) => entry.url.includes("companyfacts")),
+  );
+  assert.equal(first.audit.mappingVersion, "canonical-1");
+  let networkCalls = 0;
+  const offline = secEdgar({
+    userAgent: "Replay Research replay@example.com",
+    snapshot: SecSnapshot.replay(artifact),
+    http: {
+      fetch() {
+        networkCalls++;
+        throw new Error("offline replay used network");
+      },
+    },
+    retries: 0,
+  });
+  const second = await offline.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    fiscalQuarter: 2,
+  });
+  assert.deepEqual(second.values, first.values);
+  assert.deepEqual(second.details, first.details);
+  assert.deepEqual(second.audit.inputs, first.audit.inputs);
+  assert.equal(networkCalls, 0);
+  artifact.entries[0].body += " ";
+  assert.throws(() => SecSnapshot.replay(artifact), {
+    code: "SNAPSHOT_INTEGRITY",
+  });
+});
+
+test("PR-04 consumer mutation cannot change replayed SEC input", async () => {
+  const recording = new SecSnapshot();
+  await client({}, { snapshot: recording }).edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+  });
+  const replay = client(
+    {},
+    { snapshot: SecSnapshot.replay(recording.export()) },
+  ).edgar;
+  const raw = await replay.xbrl.companyFacts({ cik: 320193 });
+  delete raw.facts["us-gaap"];
+  const result = await replay.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+  });
+  assert.equal(result.values.revenue, 416161000000);
+});
+
+test("PR-04 changed and removed SEC responses are observable between captures", async () => {
+  const factsUrl =
+    "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const a = new SecSnapshot(),
+    b = new SecSnapshot(),
+    removed = new SecSnapshot();
+  await client({}, { snapshot: a }).edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+  });
+  const facts = await fixture("apple-companyfacts-fy2025.json");
+  facts.facts["us-gaap"].Assets.units.USD.find(
+    (x) => x.end === "2025-09-27",
+  ).val = 42;
+  await client(
+    {
+      [factsUrl]: () =>
+        new Response(JSON.stringify(facts), {
+          headers: { "content-type": "application/json" },
+        }),
+    },
+    { snapshot: b },
+  ).edgar.financials.incomeStatement({ ticker: "AAPL", fiscalYear: 2025 });
+  assert.ok(
+    diffSnapshots(a.export(), b.export()).some(
+      (x) => x.url === factsUrl && x.kind === "changed",
+    ),
+  );
+  await assert.rejects(
+    client(
+      {
+        [factsUrl]: () => new Response("removed", { status: 404 }),
+      },
+      { snapshot: removed },
+    ).edgar.financials.incomeStatement({ ticker: "AAPL", fiscalYear: 2025 }),
+    { code: "HTTP_404" },
+  );
+  assert.ok(
+    diffSnapshots(a.export(), removed.export()).some(
+      (x) => x.url === factsUrl && x.kind === "removed",
+    ),
+  );
+});
+
+test("PR-05 real Inline XBRL preserves scale, sign, nil, dimensions and custom tags", async () => {
+  const html = await readFile(
+    new URL(
+      "../../../test/fixtures/apple-q2-inline-excerpt.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const url =
+    "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm";
+  const facts = parseInlineXbrl(html, url);
+  const assets = facts.find((fact) => fact.tag === "Assets");
+  assert.equal(assets.exactValue, "331233000000");
+  assert.equal(assets.unit, "USD");
+  assert.equal(assets.end, "2025-03-29");
+  assert.equal(
+    facts.find((fact) => fact.tag === "NonoperatingIncomeExpense").exactValue,
+    "-279000000",
+  );
+  const nil = facts.find((fact) => fact.tag === "CommitmentsAndContingencies");
+  assert.equal(nil.exactValue, null);
+  assert.equal(nil.status, "nil");
+  const custom = facts.find((fact) => fact.taxonomy === "aapl");
+  assert.equal(custom.exactValue, "456000000");
+  const dimensioned = facts.find((fact) => fact.contextRef === "c-12");
+  assert.equal(dimensioned.exactValue, "68714000000");
+  assert.ok(dimensioned.dimensions.length > 0);
+  const { edgar } = client({
+    [url]: () =>
+      new Response(html, { headers: { "content-type": "text/html" } }),
+  });
+  assert.equal(
+    (
+      await edgar.filings.xbrlFacts({
+        cik: 320193,
+        accessionNumber: "0000320193-25-000057",
+        name: "aapl-20250329.htm",
+      })
+    ).find((fact) => fact.tag === "Assets").exactValue,
+    "331233000000",
+  );
+});
+
+test("PR-05 unsupported Inline transform stays unavailable and broken context fails", async () => {
+  const html = await readFile(
+    new URL(
+      "../../../test/fixtures/apple-q2-inline-excerpt.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const source =
+    "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm";
+  const unknown = html.replace(
+    'format="ixt:num-dot-decimal" scale="6" id="f-192"',
+    'format="ixt:unsupported" scale="6" id="f-192"',
+  );
+  const fact = parseInlineXbrl(unknown, source).find((x) => x.tag === "Assets");
+  assert.equal(fact.status, "unsupported");
+  assert.equal(fact.exactValue, null);
+  assert.equal(fact.sourceUrl, source);
+  assert.throws(
+    () =>
+      parseInlineXbrl(
+        html.replace('contextRef="c-23"', 'contextRef="missing"'),
+        source,
+      ),
+    { code: "SCHEMA" },
+  );
+  assert.throws(
+    () => parseInlineXbrl("<html><body>No tagged facts</body></html>", source),
+    { code: "UNSUPPORTED" },
+  );
+});
+
+test("PR-05 unsupported archive format identifies its source index", async () => {
+  const { edgar } = client();
+  await assert.rejects(
+    () =>
+      edgar.filings.xbrlFacts({
+        cik: 320193,
+        accessionNumber: "0000320193-25-000057",
+        name: "unsupported.txt",
+      }),
+    {
+      code: "UNSUPPORTED",
+      url: "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/index.json",
+    },
+  );
+});
+
+test("PR-05 optional balance validation reconciles comparable exact facts", async () => {
+  const { edgar } = client();
+  const apple = await edgar.financials.balanceSheet({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    fiscalQuarter: 2,
+    validate: true,
+    revision: "asFiled",
+  });
+  assert.equal(apple.validation.status, "pass");
+  assert.equal(apple.validation.checks[0].difference, "0");
+  assert.ok(
+    apple.validation.checks[0].sourceUrls.every((url) =>
+      url.startsWith("https://www.sec.gov/Archives/"),
+    ),
+  );
+  const reit = await edgar.financials.balanceSheet({
+    cik: 726728,
+    fiscalYear: 2025,
+    validate: true,
+  });
+  assert.equal(reit.validation.status, "pass");
+  assert.equal(
+    reit.details.equity.tag,
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+  );
+});
+
+test("PR-05 balance validation reports a discrepancy without changing source values", async () => {
+  const facts = await fixture("apple-companyfacts-fy2025.json");
+  const assets = facts.facts["us-gaap"].Assets.units.USD.find(
+    (x) => x.end === "2025-03-29" && x.accn === "0000320193-25-000057",
+  );
+  assets.val += 1000000;
+  const url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const { edgar } = client({
+    [url]: () =>
+      new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  const result = await edgar.financials.balanceSheet({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    fiscalQuarter: 2,
+    validate: true,
+    revision: "asFiled",
+  });
+  assert.equal(result.validation.status, "fail");
+  assert.equal(result.validation.checks[0].difference, "1000000");
+  assert.equal(result.values.totalAssets, assets.val);
+  assert.ok(result.validation.checks[0].sourceUrls.length >= 1);
+});
+
+test("PR-05 balance validation is unavailable for missing or incoherent operands", async () => {
+  const facts = await fixture("apple-companyfacts-fy2025.json");
+  delete facts.facts["us-gaap"].StockholdersEquity;
+  const url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const { edgar } = client({
+    [url]: () =>
+      new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  const result = await edgar.financials.balanceSheet({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    fiscalQuarter: 2,
+    validate: true,
+  });
+  assert.equal(result.validation.status, "unavailable");
+  assert.match(result.validation.checks[0].reason, /equity/);
+  assert.equal(result.values.equity, null);
+});
+
+test("PR-05 archive adapter finds primary Inline HTML when no instance XML exists", async () => {
+  const indexUrl =
+    "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/index.json";
+  const htmlUrl =
+    "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm";
+  const index = await fixture("apple-q2-archive-index.json");
+  index.directory.item = index.directory.item.filter(
+    (x) => !x.name.endsWith("_htm.xml"),
+  );
+  const html = await readFile(
+    new URL(
+      "../../../test/fixtures/apple-q2-inline-excerpt.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const { edgar } = client({
+    [indexUrl]: () =>
+      new Response(JSON.stringify(index), {
+        headers: { "content-type": "application/json" },
+      }),
+    [htmlUrl]: () =>
+      new Response(html, { headers: { "content-type": "text/html" } }),
+  });
+  const facts = await edgar.filings.xbrlFacts({
+    cik: 320193,
+    accessionNumber: "0000320193-25-000057",
+  });
+  assert.equal(
+    facts.find((x) => x.tag === "Assets").exactValue,
+    "331233000000",
+  );
+});
+
+test("PR-04 audit flags a historical filing supplied by an opaque external cache", async () => {
+  const oldUrl =
+    "https://data.sec.gov/submissions/CIK0000320193-submissions-001.json";
+  const factsUrl =
+    "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const old = await fixture("apple-older-submissions-sample.json");
+  const facts = await fixture("apple-fy2015-companyfacts.json");
+  const cache = {
+    get(key) {
+      return key === oldUrl ? old : undefined;
+    },
+    set() {},
+  };
+  const { edgar } = client(
+    {
+      [factsUrl]: () =>
+        new Response(JSON.stringify(facts), {
+          headers: { "content-type": "application/json" },
+        }),
+    },
+    { cache },
+  );
+  const statement = await edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2015,
+  });
+  assert.equal(statement.values.revenue, 233715000000);
+  assert.equal(statement.audit.complete, false);
+  assert.ok(!statement.audit.inputs.some((entry) => entry.url === oldUrl));
+});
+
+test("PR-04 replay snapshot cannot be mutated after integrity validation", () => {
+  const snapshot = new SecSnapshot();
+  const url = "https://data.sec.gov/submissions/CIK0000320193.json";
+  snapshot.capture(url, 200, "application/json", "{}");
+  const replay = SecSnapshot.replay(snapshot.export());
+  assert.throws(() => {
+    replay.get(url).body = '{"tampered":true}';
+  }, TypeError);
+  assert.equal(replay.get(url).body, "{}");
+});
+
+test("PR-04 replay misses fail closed without a network request", async () => {
+  let calls = 0;
+  const edgar = secEdgar({
+    userAgent: "Replay Research replay@example.com",
+    snapshot: SecSnapshot.replay({ version: 1, entries: [] }),
+    http: {
+      fetch() {
+        calls++;
+        throw new Error("unexpected network");
+      },
+    },
+    retries: 0,
+  });
+  await assert.rejects(edgar.xbrl.companyFacts({ cik: 320193 }), {
+    code: "SNAPSHOT_MISS",
+  });
+  assert.equal(calls, 0);
+});
+
+test("PR-03 absent reporting-currency evidence requires an explicit unit", async () => {
+  const facts = await fixture("apple-companyfacts-fy2025.json");
+  facts.facts = {};
+  const url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const { edgar } = client({
+    [url]: () =>
+      new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  await assert.rejects(
+    edgar.financials.incomeStatement({ ticker: "AAPL", fiscalYear: 2025 }),
+    {
+      code: "AMBIGUOUS_CURRENCY",
+    },
+  );
+  const explicit = await edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    unit: "USD",
+  });
+  assert.equal(explicit.coverage.status, "partial");
+  assert.equal(explicit.values.revenue, null);
+});
+
+test("PR-05 balance validation refuses operands from different filing revisions", () => {
+  const period = { end: "2025-03-29", start: undefined };
+  const source = (accessionNumber) => ({
+    accessionNumber,
+    form: "10-Q",
+    filed: "2025-05-02",
+    url: `https://www.sec.gov/Archives/${accessionNumber}`,
+  });
+  const fact = (value, accessionNumber) => ({
+    exactValue: value,
+    unit: "USD",
+    status: "reported",
+    taxonomy: "us-gaap",
+    tag: "Assets",
+    ...period,
+    source: source(accessionNumber),
+  });
+  const validation = validateBalance({
+    totalAssets: fact("100", "A"),
+    totalLiabilities: fact("60", "A"),
+    equity: fact("40", "B"),
+  });
+  assert.equal(validation.status, "unavailable");
+  assert.match(validation.checks[0].reason, /different filing/);
+});
+
+test("PR-03 industry balance fields keep deposits, reserves, property and investments distinct", async () => {
+  const { edgar } = client();
+  for (const [cik, profile, field, value, tag] of [
+    [19617, "bank", "deposits", 2559320000000, "Deposits"],
+    [
+      899051,
+      "insurance",
+      "claimsReserve",
+      41079000000,
+      "LiabilityForClaimsAndClaimsAdjustmentExpense",
+    ],
+    [
+      726728,
+      "reit",
+      "realEstateInvestmentPropertyNet",
+      53413903000,
+      "RealEstateInvestmentPropertyNet",
+    ],
+    [
+      1578348,
+      "investmentCompany",
+      "investmentsAtFairValue",
+      172658862,
+      "InvestmentOwnedAtFairValue",
+    ],
+  ]) {
+    const result = await edgar.financials.balanceSheet({
+      cik,
+      fiscalYear: 2025,
+    });
+    assert.equal(result.industry?.profile, profile);
+    assert.equal(result.industry.values[field], value);
+    assert.equal(result.industry.details[field].tag, tag);
+    assert.equal(result.industry.details[field].source.form, "10-K");
+  }
+});
+
+test("PR-05 Inline contexts cannot silently overwrite duplicate IDs", async () => {
+  const html = await readFile(
+    new URL(
+      "../../../test/fixtures/apple-q2-inline-excerpt.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const match = html.match(
+    /<xbrli:context id="c-23">[\s\S]*?<\/xbrli:context>/,
+  );
+  assert.ok(match);
+  const duplicate = html.replace(
+    "</ix:resources>",
+    match[0] + "</ix:resources>",
+  );
+  assert.throws(
+    () =>
+      parseInlineXbrl(
+        duplicate,
+        "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm",
+      ),
+    { code: "SCHEMA" },
+  );
+  const unit = html.match(/<xbrli:unit id="usd">[\s\S]*?<\/xbrli:unit>/);
+  assert.ok(unit);
+  assert.throws(
+    () =>
+      parseInlineXbrl(
+        html.replace("</ix:resources>", unit[0] + "</ix:resources>"),
+        "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm",
+      ),
+    { code: "SCHEMA" },
+  );
+});
+
+test("PR-05 Inline decimal transforms and invalid scale preserve precision rules", async () => {
+  const html = await readFile(
+    new URL(
+      "../../../test/fixtures/apple-q2-inline-excerpt.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const source =
+    "https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm";
+  const comma = html.replace(
+    'format="ixt:num-dot-decimal" scale="6" id="f-192">331,233',
+    'format="ixt:num-comma-decimal" scale="-2" id="f-192">1.234,5',
+  );
+  assert.equal(
+    parseInlineXbrl(comma, source).find((x) => x.tag === "Assets").exactValue,
+    "12.345",
+  );
+  const hugeScale = html.replace(
+    'scale="6" id="f-192"',
+    'scale="9999" id="f-192"',
+  );
+  assert.throws(() => parseInlineXbrl(hugeScale, source), { code: "SCHEMA" });
 });

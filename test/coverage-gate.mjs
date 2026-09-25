@@ -6,6 +6,7 @@ const output = execFileSync(
     "--experimental-test-coverage",
     "--test-coverage-include=packages/sec-edgar/dist/financials/*.js",
     "--test-coverage-include=packages/sec-edgar/dist/parsers/*.js",
+    "--test-coverage-include=packages/sec-edgar/dist/transport/snapshot.js",
     "packages/sec-edgar/test/client.test.mjs",
   ],
   { encoding: "utf8", maxBuffer: 2_000_000 },
@@ -13,6 +14,10 @@ const output = execFileSync(
 process.stdout.write(output);
 const minimums = {
   "decimal.js": [90, 70],
+  "currency.js": [90, 80],
+  "validation.js": [90, 80],
+  "inline-xbrl.js": [90, 80],
+  "snapshot.js": [80, 65],
   "periods.js": [80, 70],
   "selection.js": [90, 80],
   "json.js": [95, 80],

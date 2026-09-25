@@ -1,11 +1,13 @@
 import { EdgarError, assertInput, schema } from "../errors.js";
 import { isoDate, record } from "../parsers/json.js";
 import { parseXbrlInstance } from "../parsers/xbrl.js";
+import { parseInlineXbrl } from "../parsers/inline-xbrl.js";
 import type { FilingXbrlFact } from "../parsers/xbrl.js";
 import { normalizeCik } from "../companies/index.js";
 import type { SecTransport, RequestOptions } from "../transport/index.js";
 export interface Filing {
   cik: string;
+  sourceUrl?: string;
   accessionNumber: string;
   form: string;
   filed: string;
@@ -36,7 +38,11 @@ export function archiveBase(
   assertInput(accn.test(accessionNumber), "Invalid accession number");
   return `https://www.sec.gov/Archives/edgar/data/${Number(normalized)}/${accessionNumber.replaceAll("-", "")}/`;
 }
-export function normalizeColumns(raw: unknown, cik: string): Filing[] {
+export function normalizeColumns(
+  raw: unknown,
+  cik: string,
+  sourceUrl?: string,
+): Filing[] {
   schema(
     record(raw) && Array.isArray(raw.accessionNumber),
     "Submissions filing columns missing accessionNumber",
@@ -71,6 +77,7 @@ export function normalizeColumns(raw: unknown, cik: string): Filing[] {
     return {
       ...row,
       cik,
+      ...(sourceUrl ? { sourceUrl } : {}),
       accessionNumber: row.accessionNumber,
       form: row.form,
       filed: row.filingDate,
@@ -100,7 +107,7 @@ export class FilingsApi {
       "Invalid submissions response",
       url,
     );
-    return normalizeColumns(root.filings.recent, cik);
+    return normalizeColumns(root.filings.recent, cik, url);
   }
   async list(
     query: FilingQuery,
@@ -125,7 +132,7 @@ export class FilingsApi {
       "Invalid submissions response",
       url,
     );
-    const rows = normalizeColumns(root.filings.recent, cik);
+    const rows = normalizeColumns(root.filings.recent, cik, url);
     const files = root.filings.files;
     schema(
       files === undefined || Array.isArray(files),
@@ -168,6 +175,7 @@ export class FilingsApi {
           ...normalizeColumns(
             await this.transport.json(historyUrl, options),
             cik,
+            historyUrl,
           ),
         );
       } catch (cause) {
@@ -254,25 +262,29 @@ export class FilingsApi {
     options: RequestOptions = {},
   ): Promise<FilingXbrlFact[]> {
     const documents = await this.documents(query, options);
+    const instance = documents.find((x) => /_htm\.xml$/.test(x.name))?.name;
     const name =
-      query.name ?? documents.find((x) => /_htm\.xml$/.test(x.name))?.name;
+      query.name ??
+      instance ??
+      (await this.get(query, options)).primaryDocument;
     if (
       !name ||
       !documents.some((x) => x.name === name) ||
-      !/_htm\.xml$/.test(name)
+      !(/_htm\.xml$/.test(name) || /\.html?$/.test(name))
     )
       throw new EdgarError(
         "UNSUPPORTED",
-        "A supported XBRL instance XML document was not found",
+        "A supported XBRL instance XML or named Inline HTML document was not found",
+        { url: archiveBase(query.cik, query.accessionNumber) + "index.json" },
       );
     const url = archiveBase(query.cik, query.accessionNumber) + name;
-    return parseXbrlInstance(
-      await this.transport.text(url, {
-        ...options,
-        maxBytes: options.maxBytes ?? 5_000_000,
-      }),
-      url,
-    );
+    const content = await this.transport.text(url, {
+      ...options,
+      maxBytes: options.maxBytes ?? 5_000_000,
+    });
+    return /_htm\.xml$/.test(name)
+      ? parseXbrlInstance(content, url)
+      : parseInlineXbrl(content, url);
   }
   async documentText(
     query: { cik: string | number; accessionNumber: string; name: string },

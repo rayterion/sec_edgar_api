@@ -103,7 +103,11 @@ export const balanceMappings: Record<string, FieldMapping> = {
     additive: false,
   },
   equity: {
-    tags: ["us-gaap:StockholdersEquity", "ifrs-full:Equity"],
+    tags: [
+      "us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+      "us-gaap:StockholdersEquity",
+      "ifrs-full:Equity",
+    ],
     additive: false,
   },
 };
@@ -137,3 +141,66 @@ export const cashFlowMappings: Record<string, FieldMapping> = {
     additive: true,
   },
 };
+
+// Versioned, separate industry fields retain their accounting meaning. They
+// never substitute for the general revenue or net-income fields.
+export const industryMappings = {
+  investmentCompany: {
+    grossInvestmentIncome: {
+      tags: ["us-gaap:GrossInvestmentIncomeOperating"],
+      additive: true,
+    },
+    netInvestmentIncome: {
+      tags: ["us-gaap:NetInvestmentIncome"],
+      additive: true,
+    },
+  },
+  insurance: {
+    premiumsEarned: {
+      tags: ["us-gaap:PremiumsEarnedNet"],
+      additive: true,
+    },
+    netInvestmentIncome: {
+      tags: ["us-gaap:NetInvestmentIncome"],
+      additive: true,
+    },
+  },
+  reit: {
+    leaseIncome: { tags: ["us-gaap:LeaseIncome"], additive: true },
+  },
+  bank: {
+    netInterestIncome: {
+      tags: ["us-gaap:InterestIncomeExpenseNet"],
+      additive: true,
+    },
+    noninterestIncome: {
+      tags: ["us-gaap:NoninterestIncome"],
+      additive: true,
+    },
+  },
+} as const satisfies Record<string, Record<string, FieldMapping>>;
+export type IndustryProfile = keyof typeof industryMappings;
+
+export const industryBalanceMappings = {
+  investmentCompany: {
+    investmentsAtFairValue: {
+      tags: ["us-gaap:InvestmentOwnedAtFairValue"],
+      additive: false,
+    },
+  },
+  insurance: {
+    claimsReserve: {
+      tags: ["us-gaap:LiabilityForClaimsAndClaimsAdjustmentExpense"],
+      additive: false,
+    },
+  },
+  reit: {
+    realEstateInvestmentPropertyNet: {
+      tags: ["us-gaap:RealEstateInvestmentPropertyNet"],
+      additive: false,
+    },
+  },
+  bank: {
+    deposits: { tags: ["us-gaap:Deposits"], additive: false },
+  },
+} as const satisfies Record<IndustryProfile, Record<string, FieldMapping>>;

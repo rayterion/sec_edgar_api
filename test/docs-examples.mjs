@@ -21,6 +21,9 @@ let checked = 0;
 for (const [file, needsClient] of [
   ["apps/docs/docs/guide/quick-start.md", false],
   ["apps/docs/docs/guide/tasks.md", true],
+  ["apps/docs/docs/guide/snapshots.md", false],
+  ["apps/docs/docs/guide/industry-and-currency.md", false],
+  ["apps/docs/docs/guide/filing-validation.md", false],
 ]) {
   const markdown = await readFile(
     new URL("../" + file, import.meta.url),

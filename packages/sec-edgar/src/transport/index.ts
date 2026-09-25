@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { SecSnapshot, responseEvidence } from "./snapshot.js";
+import type { ResponseEvidence, SnapshotEntry } from "./snapshot.js";
 import type { Cache } from "../cache/index.js";
 import { MemoryCache } from "../cache/index.js";
 import { EdgarError, assertInput } from "../errors.js";
@@ -19,6 +22,7 @@ export interface TransportOptions {
   concurrency?: number;
   retries?: number;
   timeoutMs?: number;
+  snapshot?: SecSnapshot;
 }
 const hosts = new Set(["data.sec.gov", "www.sec.gov"]);
 const defaultHttp: HttpTransport = { fetch: (url, init) => fetch(url, init) };
@@ -62,6 +66,9 @@ let processActive = 0;
 const processWaiters: Array<() => void> = [];
 export class SecTransport {
   readonly cache: Cache;
+  private readonly snapshot?: SecSnapshot;
+  private readonly observations = new Map<string, ResponseEvidence>();
+  private readonly snapshotParsed = new Map<string, unknown>();
   private readonly http: HttpTransport;
   private readonly userAgent: string;
   private readonly interval: number;
@@ -98,6 +105,41 @@ export class SecTransport {
     this.userAgent = options.userAgent;
     this.http = options.http ?? defaultHttp;
     this.cache = options.cache ?? new MemoryCache();
+    this.snapshot = options.snapshot;
+  }
+  observedResponses(): ResponseEvidence[] {
+    return [...this.observations.values()].sort((a, b) =>
+      a.url.localeCompare(b.url),
+    );
+  }
+  private observe(
+    url: string,
+    status: number,
+    contentType: string,
+    body: string,
+    bodyCaptured = true,
+    retryAfter?: string,
+  ): void {
+    const entry: SnapshotEntry =
+      this.snapshot?.mode === "record"
+        ? this.snapshot.capture(
+            url,
+            status,
+            contentType,
+            body,
+            bodyCaptured,
+            retryAfter,
+          )
+        : (this.snapshot?.get(url) ?? {
+            url,
+            retrievedAt: new Date().toISOString(),
+            status,
+            contentType,
+            sha256: createHash("sha256").update(body, "utf8").digest("hex"),
+            body,
+            bodyCaptured,
+          });
+    this.observations.set(url, responseEvidence(entry));
   }
   private async slot(signal?: AbortSignal): Promise<void> {
     if (signal?.aborted) throw new EdgarError("ABORTED", "Request aborted");
@@ -122,14 +164,24 @@ export class SecTransport {
   }
   async json(url: string, options: RequestOptions = {}): Promise<unknown> {
     this.validateUrl(url);
-    const cached = await this.cache.get(url);
-    if (cached !== undefined) return cached;
-    if (!options.signal && this.inflight.has(url))
-      return this.inflight.get(url)!;
+    if (this.snapshotParsed.has(url))
+      return structuredClone(this.snapshotParsed.get(url));
+    if (!this.snapshot) {
+      const cached = await this.cache.get(url);
+      if (cached !== undefined) return cached;
+    }
+    if (!options.signal && this.inflight.has(url)) {
+      const pending = await this.inflight.get(url)!;
+      return this.snapshot ? structuredClone(pending) : pending;
+    }
     const work = this.request(url, "json", options);
     if (!options.signal) this.inflight.set(url, work);
     try {
       const value = await work;
+      if (this.snapshot) {
+        this.snapshotParsed.set(url, value);
+        return structuredClone(value);
+      }
       await this.cache.set(url, value, options.ttlMs ?? this.defaultTtl(url));
       return value;
     } finally {
@@ -198,14 +250,17 @@ export class SecTransport {
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
       let retryAfter = 0;
       try {
-        const response = await this.http.fetch(url, {
-          headers: {
-            "User-Agent": this.userAgent,
-            Accept: kind === "json" ? "application/json" : "*/*",
-          },
-          signal: controller.signal,
-          redirect: "manual",
-        });
+        const response =
+          this.snapshot?.mode === "replay"
+            ? this.snapshot.response(url)
+            : await this.http.fetch(url, {
+                headers: {
+                  "User-Agent": this.userAgent,
+                  Accept: kind === "json" ? "application/json" : "*/*",
+                },
+                signal: controller.signal,
+                redirect: "manual",
+              });
         if (response.status >= 300 && response.status < 400)
           throw new EdgarError(
             "REDIRECT",
@@ -234,6 +289,14 @@ export class SecTransport {
               : Math.max(0, Date.parse(header) - Date.now())
             : 0;
           if (!Number.isFinite(retryAfter)) retryAfter = 0;
+          this.observe(
+            url,
+            response.status,
+            response.headers.get("content-type") ?? "",
+            "",
+            false,
+            header ?? undefined,
+          );
           throw new EdgarError(code, `SEC returned HTTP ${response.status}`, {
             url,
             status: response.status,
@@ -278,6 +341,7 @@ export class SecTransport {
             "SEC response exceeds configured size",
             { url },
           );
+        this.observe(url, response.status, contentType, body);
         if (!body.trim())
           throw new EdgarError("EMPTY_BODY", "SEC returned an empty response", {
             url,
