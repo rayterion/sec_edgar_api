@@ -1855,3 +1855,18 @@ test("PR-05 Inline decimal transforms and invalid scale preserve precision rules
   );
   assert.throws(() => parseInlineXbrl(hugeScale, source), { code: "SCHEMA" });
 });
+
+test("financial query refresh bypasses persistent SEC inputs", async () => {
+  const factsUrl =
+    "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json";
+  const { edgar, seen } = client();
+  await edgar.financials.incomeStatement({ ticker: "AAPL", fiscalYear: 2025 });
+  await edgar.financials.incomeStatement({ ticker: "AAPL", fiscalYear: 2025 });
+  assert.equal(seen.filter(([url]) => url === factsUrl).length, 1);
+  await edgar.financials.incomeStatement({
+    ticker: "AAPL",
+    fiscalYear: 2025,
+    refresh: true,
+  });
+  assert.equal(seen.filter(([url]) => url === factsUrl).length, 2);
+});

@@ -30,7 +30,12 @@ export type EdgarErrorCode =
   | "SNAPSHOT_INTEGRITY"
   | "PRECISION"
   | "UNSUPPORTED"
-  | "OVERSIZED";
+  | "OVERSIZED"
+  | "QUEUE_FULL"
+  | "CIRCUIT_OPEN"
+  | "SHARED_LIMITER"
+  | "CACHE_CORRUPT"
+  | "UNSAFE_ARCHIVE";
 
 export class EdgarError extends Error {
   readonly code: EdgarErrorCode;

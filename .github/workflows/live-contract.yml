@@ -1,0 +1,23 @@
+name: SEC live contract
+on:
+  schedule:
+    - cron: '17 14 * * 2'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Rate-limited SEC contracts
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          test -n "$SEC_USER_AGENT" || { echo "SEC_USER_AGENT repository secret is required"; exit 1; }
+          npm run live:smoke

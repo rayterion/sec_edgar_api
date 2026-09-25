@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { SecSnapshot, responseEvidence } from "./snapshot.js";
+import type { SharedRateLimiter } from "./limiter.js";
+import { waitWithSignal } from "./wait.js";
 import type { ResponseEvidence, SnapshotEntry } from "./snapshot.js";
 import type { Cache } from "../cache/index.js";
 import { MemoryCache } from "../cache/index.js";
@@ -13,6 +15,7 @@ export interface RequestOptions {
   signal?: AbortSignal;
   ttlMs?: number;
   maxBytes?: number;
+  refresh?: boolean;
 }
 export interface TransportOptions {
   userAgent: string;
@@ -23,11 +26,26 @@ export interface TransportOptions {
   retries?: number;
   timeoutMs?: number;
   snapshot?: SecSnapshot;
+  sharedLimiter?: SharedRateLimiter;
+  maxQueue?: number;
+  circuitBreaker?: { failureThreshold: number; resetMs: number };
+}
+export interface TransportMetrics {
+  requests: number;
+  successes: number;
+  failures: number;
+  retries: number;
+  cacheHits: number;
+  queueDepth: number;
+  queueWaitMs: number;
+  rateLimitWaitMs: number;
+  retryWaitMs: number;
+  latencyMs: number;
+  circuitOpen: number;
+  overloads: number;
 }
 const hosts = new Set(["data.sec.gov", "www.sec.gov"]);
 const defaultHttp: HttpTransport = { fetch: (url, init) => fetch(url, init) };
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
 function networkFailureCode(
   error: unknown,
 ):
@@ -75,6 +93,27 @@ export class SecTransport {
   private readonly concurrency: number;
   private readonly retries: number;
   private readonly timeoutMs: number;
+  private readonly maxQueue: number;
+  private readonly sharedLimiter?: SharedRateLimiter;
+  private readonly circuitThreshold: number;
+  private readonly circuitResetMs: number;
+  private circuitFailures = 0;
+  private circuitOpenUntil = 0;
+  private queued = 0;
+  private readonly metricsState: TransportMetrics = {
+    requests: 0,
+    successes: 0,
+    failures: 0,
+    retries: 0,
+    cacheHits: 0,
+    queueDepth: 0,
+    queueWaitMs: 0,
+    rateLimitWaitMs: 0,
+    retryWaitMs: 0,
+    latencyMs: 0,
+    circuitOpen: 0,
+    overloads: 0,
+  };
   private active = 0;
   private nextAt = 0;
   private inflight = new Map<string, Promise<unknown>>();
@@ -106,6 +145,41 @@ export class SecTransport {
     this.http = options.http ?? defaultHttp;
     this.cache = options.cache ?? new MemoryCache();
     this.snapshot = options.snapshot;
+    this.sharedLimiter = options.sharedLimiter;
+    this.maxQueue = options.maxQueue ?? 64;
+    assertInput(
+      Number.isInteger(this.maxQueue) && this.maxQueue >= 0,
+      "maxQueue must be a nonnegative integer",
+    );
+    this.circuitThreshold = options.circuitBreaker?.failureThreshold ?? 3;
+    this.circuitResetMs = options.circuitBreaker?.resetMs ?? 30_000;
+    assertInput(
+      Number.isInteger(this.circuitThreshold) && this.circuitThreshold > 0,
+      "Invalid circuit failure threshold",
+    );
+    assertInput(
+      Number.isFinite(this.circuitResetMs) && this.circuitResetMs > 0,
+      "Invalid circuit reset time",
+    );
+  }
+  metrics(): TransportMetrics {
+    return { ...this.metricsState, queueDepth: this.queued };
+  }
+  private beforeRequest(): void {
+    if (Date.now() < this.circuitOpenUntil) {
+      this.metricsState.circuitOpen++;
+      throw new EdgarError("CIRCUIT_OPEN", "SEC circuit is temporarily open");
+    }
+  }
+  private recordFailure(code: string): void {
+    if (!["HTTP_403", "HTTP_429", "HTTP_5XX"].includes(code)) return;
+    if (++this.circuitFailures >= this.circuitThreshold)
+      this.circuitOpenUntil = Date.now() + this.circuitResetMs;
+  }
+  private recordSuccess(): void {
+    this.circuitFailures = 0;
+    this.circuitOpenUntil = 0;
+    this.metricsState.successes++;
   }
   observedResponses(): ResponseEvidence[] {
     return [...this.observations.values()].sort((a, b) =>
@@ -143,18 +217,52 @@ export class SecTransport {
   }
   private async slot(signal?: AbortSignal): Promise<void> {
     if (signal?.aborted) throw new EdgarError("ABORTED", "Request aborted");
-    while (this.active >= this.concurrency || processActive >= 8)
-      await new Promise<void>((resolve) => processWaiters.push(resolve));
+    while (this.active >= this.concurrency || processActive >= 8) {
+      if (this.queued >= this.maxQueue || processWaiters.length >= 512) {
+        this.metricsState.overloads++;
+        throw new EdgarError("QUEUE_FULL", "SEC request queue is full");
+      }
+      this.queued++;
+      const waitingSince = Date.now();
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const wake = () => {
+            signal?.removeEventListener("abort", abort);
+            resolve();
+          };
+          const abort = () => {
+            const index = processWaiters.indexOf(wake);
+            if (index >= 0) processWaiters.splice(index, 1);
+            reject(new EdgarError("ABORTED", "Request aborted"));
+          };
+          processWaiters.push(wake);
+          signal?.addEventListener("abort", abort, { once: true });
+          if (signal?.aborted) abort();
+        });
+      } finally {
+        this.queued--;
+        this.metricsState.queueWaitMs += Date.now() - waitingSince;
+      }
+    }
     this.active++;
     processActive++;
     const reserved = Math.max(Date.now(), this.nextAt, processNextAt);
     const delay = Math.max(0, reserved - Date.now());
     this.nextAt = reserved + this.interval;
-    processNextAt = reserved + 1000 / 9;
-    if (delay) await sleep(delay);
-    if (signal?.aborted) {
+    processNextAt = reserved + 1000 / 8;
+    try {
+      if (delay) {
+        this.metricsState.rateLimitWaitMs += delay;
+        await waitWithSignal(delay, signal);
+      }
+      if (this.sharedLimiter) {
+        const started = Date.now();
+        await this.sharedLimiter.acquire(signal);
+        this.metricsState.rateLimitWaitMs += Date.now() - started;
+      }
+    } catch (error) {
       this.release();
-      throw new EdgarError("ABORTED", "Request aborted");
+      throw error;
     }
   }
   private release(): void {
@@ -166,26 +274,40 @@ export class SecTransport {
     this.validateUrl(url);
     if (this.snapshotParsed.has(url))
       return structuredClone(this.snapshotParsed.get(url));
-    if (!this.snapshot) {
-      const cached = await this.cache.get(url);
-      if (cached !== undefined) return cached;
+    if (!this.snapshot && !options.refresh) {
+      const entry = await this.cache.getEntry?.(url);
+      if (entry) {
+        if (entry.source) this.observations.set(url, entry.source);
+        this.metricsState.cacheHits++;
+        return entry.value;
+      }
+      if (!this.cache.getEntry) {
+        const cached = await this.cache.get(url);
+        if (cached !== undefined) {
+          this.metricsState.cacheHits++;
+          return cached;
+        }
+      }
     }
-    if (!options.signal && this.inflight.has(url)) {
-      const pending = await this.inflight.get(url)!;
+    const inflightKey = `${url}|${options.refresh ? "refresh" : "normal"}`;
+    if (!options.signal && this.inflight.has(inflightKey)) {
+      const pending = await this.inflight.get(inflightKey)!;
       return this.snapshot ? structuredClone(pending) : pending;
     }
     const work = this.request(url, "json", options);
-    if (!options.signal) this.inflight.set(url, work);
+    if (!options.signal) this.inflight.set(inflightKey, work);
     try {
       const value = await work;
       if (this.snapshot) {
         this.snapshotParsed.set(url, value);
         return structuredClone(value);
       }
-      await this.cache.set(url, value, options.ttlMs ?? this.defaultTtl(url));
+      await this.cache.set(url, value, options.ttlMs ?? this.defaultTtl(url), {
+        source: this.observations.get(url),
+      });
       return value;
     } finally {
-      if (!options.signal) this.inflight.delete(url);
+      if (!options.signal) this.inflight.delete(inflightKey);
     }
   }
   async text(url: string, options: RequestOptions = {}): Promise<string> {
@@ -243,7 +365,10 @@ export class SecTransport {
     options: RequestOptions,
   ): Promise<unknown> {
     for (let attempt = 0; attempt <= this.retries; attempt++) {
+      this.beforeRequest();
       await this.slot(options.signal);
+      this.metricsState.requests++;
+      const started = Date.now();
       const controller = new AbortController();
       const onAbort = () => controller.abort(options.signal?.reason);
       options.signal?.addEventListener("abort", onAbort, { once: true });
@@ -289,6 +414,11 @@ export class SecTransport {
               : Math.max(0, Date.parse(header) - Date.now())
             : 0;
           if (!Number.isFinite(retryAfter)) retryAfter = 0;
+          if (
+            (response.status === 404 || response.status === 410) &&
+            this.cache.delete
+          )
+            await this.cache.delete(url);
           this.observe(
             url,
             response.status,
@@ -346,7 +476,10 @@ export class SecTransport {
           throw new EdgarError("EMPTY_BODY", "SEC returned an empty response", {
             url,
           });
-        if (kind === "text") return body;
+        if (kind === "text") {
+          this.recordSuccess();
+          return body;
+        }
         if (/html/i.test(contentType) || /^\s*</.test(body))
           throw new EdgarError(
             "BLOCKED_HTML",
@@ -361,7 +494,9 @@ export class SecTransport {
             "SEC JSON response has an unexpected content type",
             { url },
           );
-        return parseLosslessJson(body, url);
+        const parsed = parseLosslessJson(body, url);
+        this.recordSuccess();
+        return parsed;
       } catch (cause) {
         const error =
           cause instanceof EdgarError
@@ -375,16 +510,20 @@ export class SecTransport {
                 "SEC request failed",
                 { url, retryable: !options.signal?.aborted, cause },
               );
+        this.metricsState.failures++;
+        this.recordFailure(error.code);
         if (!error.retryable || attempt === this.retries) throw error;
-        await sleep(
-          Math.max(
-            retryAfter,
-            Math.min(4000, 250 * 2 ** attempt + Math.random() * 150),
-          ),
+        this.metricsState.retries++;
+        const retryDelay = Math.max(
+          retryAfter,
+          Math.min(4000, 250 * 2 ** attempt + Math.random() * 150),
         );
+        this.metricsState.retryWaitMs += retryDelay;
+        await waitWithSignal(retryDelay, options.signal);
       } finally {
         clearTimeout(timer);
         options.signal?.removeEventListener("abort", onAbort);
+        this.metricsState.latencyMs += Date.now() - started;
         this.release();
       }
     }

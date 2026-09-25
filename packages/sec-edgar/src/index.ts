@@ -13,7 +13,28 @@ export type {
   TransportOptions,
   HttpTransport,
   RequestOptions,
+  TransportMetrics,
 } from "./transport/index.js";
+export { assessHealth } from "./monitor/index.js";
+export type {
+  HealthAlertCode,
+  HealthAlert,
+  HealthInput,
+  HealthThresholds,
+  MonitoringStatement,
+} from "./monitor/index.js";
+export { importBulkZip, DEFAULT_BULK_LIMITS } from "./bulk/index.js";
+export type {
+  BulkKind,
+  BulkImportOptions,
+  BulkImportReport,
+} from "./bulk/index.js";
+export { SecTransport } from "./transport/index.js";
+export { FileRateLimiter } from "./transport/limiter.js";
+export type {
+  SharedRateLimiter,
+  FileRateLimiterOptions,
+} from "./transport/limiter.js";
 export { SecSnapshot, diffSnapshots } from "./transport/snapshot.js";
 export type {
   SnapshotEntry,
@@ -21,8 +42,13 @@ export type {
   SnapshotDifference,
   ResponseEvidence,
 } from "./transport/snapshot.js";
-export type { Cache } from "./cache/index.js";
-export { MemoryCache } from "./cache/index.js";
+export type {
+  Cache,
+  CacheEntry,
+  CacheWriteMetadata,
+  FileCacheOptions,
+} from "./cache/index.js";
+export { MemoryCache, FileCache } from "./cache/index.js";
 export { EdgarError } from "./errors.js";
 export type { EdgarErrorCode } from "./errors.js";
 export type { Company, CompanyIdentifier } from "./companies/index.js";
@@ -92,6 +118,13 @@ export function createEdgarClient(options: TransportOptions) {
       });
     },
   };
-  return { companies, filings, xbrl, financials, raw };
+  return {
+    companies,
+    filings,
+    xbrl,
+    financials,
+    raw,
+    metrics: () => transport.metrics(),
+  };
 }
 export default createEdgarClient;

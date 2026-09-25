@@ -40,6 +40,7 @@ export type FinancialQuery = CompanyIdentifier & {
   precision?: "number" | "string";
   trace?: boolean;
   validate?: boolean;
+  refresh?: boolean;
   signal?: AbortSignal;
 };
 export interface Statement {
@@ -115,14 +116,19 @@ export class FinancialsApi {
       !query.validate || kind === "balance",
       "validate is available for balance sheets",
     );
+    assertInput(
+      query.refresh === undefined || typeof query.refresh === "boolean",
+      "Invalid refresh option",
+    );
     const identifier =
       query.ticker !== undefined
         ? { ticker: query.ticker }
         : { cik: query.cik! };
-    const company = await this.companies.resolve(identifier, {
+    const request: RequestOptions = {
       signal: query.signal,
-    });
-    const request: RequestOptions = { signal: query.signal };
+      refresh: query.refresh,
+    };
+    const company = await this.companies.resolve(identifier, request);
     // Filing dates lag report dates. This window reaches the prior annual
     // while the submissions reference ranges avoid unrelated history files.
     const from = `${query.fiscalYear - 2}-01-01`;

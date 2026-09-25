@@ -24,6 +24,9 @@ for (const [file, needsClient] of [
   ["apps/docs/docs/guide/snapshots.md", false],
   ["apps/docs/docs/guide/industry-and-currency.md", false],
   ["apps/docs/docs/guide/filing-validation.md", false],
+  ["apps/docs/docs/guide/server-operations.md", false],
+  ["apps/docs/docs/guide/cache-and-bulk.md", false],
+  ["apps/docs/docs/guide/monitoring.md", false],
 ]) {
   const markdown = await readFile(
     new URL("../" + file, import.meta.url),
