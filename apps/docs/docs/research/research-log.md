@@ -125,3 +125,9 @@ Optional balance validation compares exact assets, liabilities, and total equity
 ## 2026-09-26: GitHub Pages live verification
 
 **Method and finding.** [Docs Pages run 36210634709](https://github.com/rayterion/sec_edgar_api/actions/runs/36210634709) completed successfully after repository Pages activation. A direct GET of `https://rayterion.github.io/sec_edgar_api/` returned HTTP 200 and Docusaurus HTML. The v1 source commit also passed [Docs Pages run 36211645644](https://github.com/rayterion/sec_edgar_api/actions/runs/36211645644) and [CI run 36211645682](https://github.com/rayterion/sec_edgar_api/actions/runs/36211645682). See [ADR 021](../decisions/021-documentation-hosting.md) and the [website guide](../guide/website.md).
+
+## 2026-09-26: npm first-publish authentication failure
+
+**Observation.** The account owner ran the public `@rayterion/sec-edgar@1.0.0` publish with a private 2FA code. The npm debug log recorded two expected pre-publication GET 404 responses followed by `PUT https://registry.npmjs.org/@rayterion%2fsec-edgar` returning HTTP 404. No version appeared in the public registry afterward. The response did not distinguish a package-name restriction from an authorization failure. Do not interpret the pre-publication GET 404 as proof of name ownership or publish permission.
+
+**Follow-up.** At a later check, `npm whoami` and `npm profile get` returned E401: the saved credential was then invalid. This does not prove it was invalid at the earlier PUT. A fresh `npm login --auth-type=web` was started, but its browser authorization timed out and the CLI was canceled without entering credentials. Repeat login when the account owner is ready, confirm `npm whoami`, and publish immediately with 2FA. If the PUT still returns 404 while authentication is valid, inspect account/scope permissions and contact npm support with a redacted request ID rather than silently changing the release name.

@@ -1,6 +1,6 @@
 # Release report — 1.0.0
 
-**Date:** 2026-09-26. This is an unofficial, read-only local client prepared as `@rayterion/sec-edgar@1.0.0`. npm publication is awaiting the account 2FA requirement. The [GitHub Pages site](https://rayterion.github.io/sec_edgar_api/) is live.
+**Date:** 2026-09-26. This is an unofficial, read-only local client prepared as `@rayterion/sec-edgar@1.0.0`. npm publication remains blocked after a 2FA-authenticated attempt returned HTTP 404; a later check found the saved npm credential invalid. See [the dated incident](research/research-log.md#2026-09-26-npm-first-publish-authentication-failure). The [GitHub Pages site](https://rayterion.github.io/sec_edgar_api/) is live.
 
 ## Verification
 
