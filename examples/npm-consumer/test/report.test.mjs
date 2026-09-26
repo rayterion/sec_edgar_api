@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { getStatements, parseQuery } from "../src/report.mjs";
 
@@ -105,4 +108,56 @@ test("the lockfile pins v1.0.0 to the verified GitHub release commit", async () 
     lockfile.packages["node_modules/@rayterion/sec-edgar"].resolved,
     "git+ssh://git@github.com/rayterion/sec_edgar_api.git#e0d3bddd67ca3bbbd5a56d1acc753a005fdbd242",
   );
+});
+
+test("start loads a local development User-Agent file without committing a shared identity", async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  const template = await readFile(
+    new URL("../.env.example", import.meta.url),
+    "utf8",
+  );
+  assert.equal(
+    manifest.scripts.start,
+    "node --env-file-if-exists=.env src/index.mjs",
+  );
+  assert.match(template, /^SEC_USER_AGENT=$/m);
+  assert.doesNotMatch(template, /contact@example\.com/);
+});
+
+test("Node loads the local development identity and honors a shell override", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "sec-edgar-user-agent-"));
+  try {
+    await writeFile(
+      join(directory, ".env"),
+      'SEC_USER_AGENT="Local Dev local@example.org"\n',
+    );
+    const command = [
+      "--env-file-if-exists=.env",
+      "--print",
+      "process.env.SEC_USER_AGENT",
+    ];
+    const cleanEnvironment = { ...process.env };
+    delete cleanEnvironment.SEC_USER_AGENT;
+    const local = spawnSync(process.execPath, command, {
+      cwd: directory,
+      env: cleanEnvironment,
+      encoding: "utf8",
+    });
+    assert.equal(local.status, 0, local.stderr);
+    assert.equal(local.stdout.trim(), "Local Dev local@example.org");
+    const override = spawnSync(process.execPath, command, {
+      cwd: directory,
+      env: {
+        ...cleanEnvironment,
+        SEC_USER_AGENT: "Shell Dev shell@example.org",
+      },
+      encoding: "utf8",
+    });
+    assert.equal(override.status, 0, override.stderr);
+    assert.equal(override.stdout.trim(), "Shell Dev shell@example.org");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

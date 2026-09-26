@@ -8,7 +8,9 @@ Use Node.js 24 or newer. Run:
 cd examples/npm-consumer
 npm ci
 npm test
-SEC_USER_AGENT="Example Research contact@example.com" npm start -- AAPL 2025 2
+cp -n .env.example .env
+# Edit .env: SEC_USER_AGENT="Your Name your-real-email@your-domain.com"
+npm start -- AAPL 2025 2
 ```
 
-Use your real name or organization and a monitored contact address in `SEC_USER_AGENT`. The command returns full income and balance statements, including `details` with SEC source links, `coverage`, and `warnings`. Missing values remain `null`. The live command contacts SEC; the unit tests do not.
+`npm start` loads `.env` when present. Set `SEC_USER_AGENT` there once using your real name or organization and a monitored contact address. An environment variable supplied in the shell overrides the file. If neither is set, the app stops before contacting the SEC. Do not commit `.env`; it is ignored by Git. The command returns full income and balance statements, including `details` with SEC source links, `coverage`, and `warnings`. Missing values remain `null`. The live command contacts SEC; the unit tests do not.
