@@ -10,7 +10,7 @@ On fnm-managed Node 24.21.0, `npm run check` passed on 2026-09-26. It ran format
 
 ## GitHub tag installation
 
-The annotated [`v1.0.0` tag](https://github.com/rayterion/sec_edgar_api/tree/v1.0.0) resolves to a 48-file root package at commit `e0d3bddd67ca3bbbd5a56d1acc753a005fdbd242`, assembled from [source commit `81ae9902ad22aaf0f732233f22c52d0812017c35`](https://github.com/rayterion/sec_edgar_api/commit/81ae9902ad22aaf0f732233f22c52d0812017c35). The tag has a root `package.json`, compiled ESM and declarations, README, license, and `SOURCE.md`. No npm publish occurred.
+The annotated [`v1.0.0` tag](https://github.com/rayterion/sec_edgar_api/tree/v1.0.0) resolves to a 48-file root package at commit `e0d3bddd67ca3bbbd5a56d1acc753a005fdbd242`, assembled from [source commit `81ae9902ad22aaf0f732233f22c52d0812017c35`](https://github.com/rayterion/sec_edgar_api/commit/81ae9902ad22aaf0f732233f22c52d0812017c35). The tag has a root `package.json`, compiled ESM and declarations, README, license, and `SOURCE.md`. No npm registry release succeeded or is planned.
 
 From `examples/npm-consumer`, `npm ci --no-audit --no-fund`, `npm test`, and an import of both the default factory and `createEdgarClient` passed on Node 24.21.0. A separate clean consumer with `GIT_SSH_COMMAND=false` and an empty npm cache installed the same `github:` dependency, confirming this public release does not require the consumer to own a GitHub SSH key. The three runtime dependencies still come from npm.
 
