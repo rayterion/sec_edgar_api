@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "scripts": {
     "build": "docusaurus build",
-    "start": "docusaurus start"
+    "start": "docusaurus start",
+    "serve": "docusaurus serve"
   },
   "dependencies": {
     "@docusaurus/core": "^3.10.2",

@@ -1,14 +1,15 @@
 module.exports = {
   title: "SEC EDGAR Client",
   tagline: "Public SEC data with visible lineage",
-  url: "https://example.invalid",
-  baseUrl: "/",
+  url: "https://rayterion.github.io",
+  baseUrl: "/sec_edgar_api/",
+  trailingSlash: false,
   onBrokenLinks: "throw",
   markdown: { mermaid: true, hooks: { onBrokenMarkdownLinks: "throw" } },
   themes: ["@docusaurus/theme-mermaid"],
   favicon: undefined,
-  organizationName: "local",
-  projectName: "sec-edgar-client",
+  organizationName: "rayterion",
+  projectName: "sec_edgar_api",
   presets: [
     [
       "classic",
