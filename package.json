@@ -12,9 +12,9 @@
     "test": "npm run test -w packages/sec-edgar",
     "docs:build": "npm run build -w apps/docs",
     "pack:smoke": "node test/packed-import.mjs",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm run typecheck:examples && npm test && npm run test:contracts && npm run coverage && npm run security:check && npm run pack:smoke && npm run docs:examples && npm run docs:build && npm run test:deployment && npm run test:release",
-    "format": "prettier --write \"packages/sec-edgar/src/**/*.ts\" \"packages/sec-edgar/test/*.mjs\" \"examples/*.{js,ts,mjs}\" \"apps/docs/docs/**/*.md\" \"test/*.mjs\" \"test/fixtures/manifest.json\" \"apps/docs/*.{cjs,json}\" \"*.md\" \"*.json\" \"apps/docs/*.json\" \"packages/sec-edgar/*.json\"",
-    "format:check": "prettier --check \"packages/sec-edgar/src/**/*.ts\" \"packages/sec-edgar/test/*.mjs\" \"examples/*.{js,ts,mjs}\" \"apps/docs/docs/**/*.md\" \"test/*.mjs\" \"test/fixtures/manifest.json\" \"apps/docs/*.{cjs,json}\" \"*.md\" \"*.json\" \"apps/docs/*.json\" \"packages/sec-edgar/*.json\"",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm run typecheck:examples && npm test && npm run test:contracts && npm run coverage && npm run security:check && npm run pack:smoke && npm run docs:examples && npm run docs:build && npm run test:deployment && npm run test:release && npm run test:consumer",
+    "format": "prettier --write \"packages/sec-edgar/src/**/*.ts\" \"packages/sec-edgar/test/*.mjs\" \"examples/**/*.{js,ts,mjs}\" \"apps/docs/docs/**/*.md\" \"test/*.mjs\" \"test/fixtures/manifest.json\" \"apps/docs/*.{cjs,json}\" \"*.md\" \"*.json\" \"apps/docs/*.json\" \"packages/sec-edgar/*.json\" \"examples/**/*.md\" \"examples/**/package.json\"",
+    "format:check": "prettier --check \"packages/sec-edgar/src/**/*.ts\" \"packages/sec-edgar/test/*.mjs\" \"examples/**/*.{js,ts,mjs}\" \"apps/docs/docs/**/*.md\" \"test/*.mjs\" \"test/fixtures/manifest.json\" \"apps/docs/*.{cjs,json}\" \"*.md\" \"*.json\" \"apps/docs/*.json\" \"packages/sec-edgar/*.json\" \"examples/**/*.md\" \"examples/**/package.json\"",
     "lint": "eslint packages/sec-edgar/src packages/sec-edgar/test examples test/*.mjs",
     "docs:examples": "node test/docs-examples.mjs",
     "live:smoke": "node test/live-smoke.mjs",
@@ -25,7 +25,8 @@
     "docs:start": "npm run start -w apps/docs",
     "docs:serve": "npm run serve -w apps/docs",
     "test:deployment": "node --test test/docs-deployment.test.mjs",
-    "test:release": "node --test test/release-metadata.test.mjs"
+    "test:release": "node --test test/release-metadata.test.mjs",
+    "test:consumer": "node --test examples/npm-consumer/test/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

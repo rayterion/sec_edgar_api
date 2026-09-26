@@ -48,5 +48,6 @@ test("consumer documentation identifies the published package", async () => {
     assert.match(document, /npm install @rayterion\/sec-edgar/);
     assert.doesNotMatch(document, /provisional/i);
   }
+  assert.match(rootReadme, /examples\/npm-consumer/);
   assert.match(releaseReport, /Release report — 1\.0\.0/);
 });
