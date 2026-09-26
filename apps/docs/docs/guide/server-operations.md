@@ -8,7 +8,7 @@ The SEC currently limits one user's **aggregate** requests across machines to te
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createEdgarClient, FileRateLimiter } from "@sec-edgar/research-client";
+import { createEdgarClient, FileRateLimiter } from "@rayterion/sec-edgar";
 
 const directory = await mkdtemp(join(tmpdir(), "edgar-guide-"));
 try {

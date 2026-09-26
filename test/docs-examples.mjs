@@ -44,7 +44,7 @@ for (const [file, needsClient] of [
       : code,
   );
   const setup = needsClient
-    ? `import { createEdgarClient } from '@sec-edgar/research-client';\nconst edgar = createEdgarClient({ userAgent: 'Docs Test docs@example.com' });\n`
+    ? `import { createEdgarClient } from '@rayterion/sec-edgar';\nconst edgar = createEdgarClient({ userAgent: 'Docs Test docs@example.com' });\n`
     : "";
   for (const script of needsClient ? [scripts.join("\n")] : scripts) {
     execFileSync(

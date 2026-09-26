@@ -7,7 +7,7 @@ import {
   createEdgarClient,
   SecSnapshot,
   diffSnapshots,
-} from "@sec-edgar/research-client";
+} from "@rayterion/sec-edgar";
 
 const recording = new SecSnapshot();
 const live = createEdgarClient({

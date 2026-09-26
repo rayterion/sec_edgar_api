@@ -113,3 +113,11 @@ Optional balance validation compares exact assets, liabilities, and total equity
 **Findings and decision.** Repository project sites use the owner origin and `/<repository>/` base path. The official custom workflow builds static files, uploads a Pages artifact, and deploys with `pages: write` plus `id-token: write`. `configure-pages` can enable Pages only with a token other than the workflow's default `GITHUB_TOKEN`; repository settings must first select GitHub Actions as the publishing source. Use the project path in Docusaurus and a separate Pages workflow. See [ADR 021](../decisions/021-documentation-hosting.md).
 
 **Verification and open gate.** A generated-site test checks canonical, CSS, and JavaScript URLs under `/sec_edgar_api/`; local build and root scripts are tested. The public Pages URL and remote deploy must still be verified after repository configuration.
+
+## 2026-09-26: npm v1 distribution
+
+**Question and method.** Verified `npm whoami` in the project shell returned `rayterion`. Queried the npm registry for `@rayterion/sec-edgar`; it returned HTTP 404 before publication. Read npm's [scoped public package instructions](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/), [scope ownership description](https://docs.npmjs.com/about-scopes/), and [2FA publishing requirements](https://docs.npmjs.com/requiring-2fa-for-package-publishing-and-settings-modification/). Ran `npm publish --dry-run --json --workspace packages/sec-edgar` with fnm-managed Node 24.21.0.
+
+**Findings and decision.** Use the publisher-owned `@rayterion` scope and publish `@rayterion/sec-edgar@1.0.0` with public access. A registry 404 alone does not reserve the name; the actual publish must establish availability. The dry run contained 47 files (34,953 packed bytes): compiled ESM, declarations, manifest, README, and MIT license. The package `prepack` script rebuilt output before packing. `npm run check` passed, including a clean consumer import from the packed tarball.
+
+**Operational limit.** npm account authentication and the registry's publishing security requirements govern the final upload. The live registry artifact must be verified separately from the dry run.

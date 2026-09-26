@@ -1,4 +1,4 @@
-import secEdgar from "@sec-edgar/research-client";
+import secEdgar from "@rayterion/sec-edgar";
 const edgar = secEdgar({
   userAgent:
     process.env.SEC_USER_AGENT ?? "Example Research contact@example.com",

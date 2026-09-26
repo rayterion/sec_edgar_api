@@ -14,7 +14,7 @@ For a local check, provide the same value as an environment variable and run `np
 `assessHealth` is a pure local evaluator. Pass transport metrics for a measurement window, recent errors, and normalized statements. It reports schema drift, canonical coverage drops, stale retrievals, provenance gaps, repeated SEC access failures, and queue pressure. Your service chooses thresholds and sends alerts through its own monitoring system. A statement's canonical coverage is not a filing audit.
 
 ```js
-import { assessHealth } from "@sec-edgar/research-client";
+import { assessHealth } from "@rayterion/sec-edgar";
 
 const alerts = assessHealth({
   metrics: {

@@ -1,4 +1,4 @@
-import { createEdgarClient, type Statement } from "@sec-edgar/research-client";
+import { createEdgarClient, type Statement } from "@rayterion/sec-edgar";
 const edgar = createEdgarClient({
   userAgent:
     process.env.SEC_USER_AGENT ?? "Example Research contact@example.com",

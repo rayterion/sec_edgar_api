@@ -3,7 +3,7 @@
 The client selects a default reporting currency only when exact-period monetary anchors in the selected filing agree on one three-letter unit. Otherwise it raises `AMBIGUOUS_CURRENCY`. Pass `unit` to state your choice; no exchange-rate conversion occurs, and a chosen unit may leave fields `null`.
 
 ```js
-import { createEdgarClient } from "@sec-edgar/research-client";
+import { createEdgarClient } from "@rayterion/sec-edgar";
 
 const edgar = createEdgarClient({
   userAgent: "Example Research contact@example.com",

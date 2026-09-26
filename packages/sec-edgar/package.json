@@ -1,6 +1,6 @@
 {
-  "name": "@sec-edgar/research-client",
-  "version": "0.1.0",
+  "name": "@rayterion/sec-edgar",
+  "version": "1.0.0",
   "description": "Public, read-only SEC EDGAR data client",
   "license": "MIT",
   "type": "module",
@@ -22,7 +22,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test test/*.test.mjs"
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@types/yauzl": "^2.10.3",
@@ -33,5 +34,24 @@
     "fast-xml-parser": "^5.11.1",
     "htmlparser2": "^12.0.0",
     "yauzl": "^3.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rayterion/sec_edgar_api.git",
+    "directory": "packages/sec-edgar"
+  },
+  "bugs": {
+    "url": "https://github.com/rayterion/sec_edgar_api/issues"
+  },
+  "homepage": "https://github.com/rayterion/sec_edgar_api#readme",
+  "keywords": [
+    "sec",
+    "edgar",
+    "xbrl",
+    "financial-statements",
+    "filings"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

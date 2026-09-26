@@ -6,7 +6,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FileCache } from "@sec-edgar/research-client";
+import { FileCache } from "@rayterion/sec-edgar";
 
 const directory = await mkdtemp(join(tmpdir(), "edgar-cache-guide-"));
 try {

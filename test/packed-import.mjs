@@ -33,7 +33,7 @@ try {
   );
   await writeFile(
     join(consumer, "test.mjs"),
-    `import secEdgar, { createEdgarClient, normalizeCik } from '@sec-edgar/research-client';
+    `import secEdgar, { createEdgarClient, normalizeCik } from '@rayterion/sec-edgar';
 if (secEdgar !== createEdgarClient || normalizeCik(320193) !== '0000320193') throw new Error('packed import failed');
 const client = secEdgar({ userAgent: 'Packed Test packed@example.com' });
 if (!client.financials.incomeStatement || !client.filings.xbrlFacts) throw new Error('missing exports');

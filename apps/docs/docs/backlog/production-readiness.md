@@ -6,7 +6,7 @@ sidebar_position: 1
 # Production readiness backlog
 
 **Recorded:** 2026-09-24  
-**Status:** Open. The current package is a tested preview, not a complete v1 or a sole source for high-stakes financial decisions.
+**Status:** Open for high-stakes server deployment. v1.0.0 stabilizes the tested public API within its documented coverage; it is not a sole source for high-stakes financial decisions.
 
 This is the maintained list of work needed before relying on normalized statements in large server deployments. Each item needs a documented decision, real-response fixtures where SEC behavior is involved, deterministic tests, and an update to the [release report](../release-report.md) when completed. Priority P0 blocks high-stakes use; P1 blocks large-scale service operation. Status is **Open** until its acceptance criteria pass.
 
@@ -83,7 +83,7 @@ The deterministic suite uses a small set of real filers, and the live smoke test
 
 **Acceptance:** A documented compatibility matrix names supported filer and filing classes and has passing scenario tests. Scheduled checks report upstream changes without overwhelming SEC hosts. Release gates include the packed-package import, docs build, production dependency review, and measured load behavior. See the [release report](../release-report.md) and [fixture provenance](../research/data-anomalies.md).
 
-**Implementation evidence (2026-09-25):** Implementation and tests commit `463e8dc`. The [compatibility matrix](../guide/compatibility-matrix.md) links domestic, IFRS, industry, amendment, transition, archive, and error fixtures to passing scenarios. Deterministic load and failure-injection tests, health alerts, packed import, docs build, and dependency audit are release gates. A separate weekly live workflow and unit-tested contract check are present. **Activation remains:** provide a genuine `SEC_USER_AGENT` repository secret and observe the first scheduled run; no such contact is available in this checkout. Keep this item open until that external gate passes. See [ADR 020](../decisions/020-operational-monitoring.md) and [monitoring](../guide/monitoring.md).
+**Implementation evidence (2026-09-25):** Implementation and tests commit `463e8dc`. The [compatibility matrix](../guide/compatibility-matrix.md) links domestic, IFRS, industry, amendment, transition, archive, and error fixtures to passing scenarios. Deterministic load and failure-injection tests, health alerts, packed import, docs build, and dependency audit are release gates. A separate weekly live workflow and unit-tested contract check are present. **Activation remains:** the manual live workflow passed on 2026-09-26 with a configured `SEC_USER_AGENT` secret ([run 36208974964](https://github.com/rayterion/sec_edgar_api/actions/runs/36208974964)); observe the first scheduled run before marking this item done. See [ADR 020](../decisions/020-operational-monitoring.md) and [monitoring](../guide/monitoring.md).
 
 ## Updating this backlog
 

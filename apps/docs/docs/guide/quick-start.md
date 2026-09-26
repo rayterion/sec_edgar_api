@@ -1,11 +1,11 @@
 # Five-minute quick start
 
-Requires Node.js 24 or newer. The package name is provisional while an owned npm scope is chosen. From this workspace, run `npm install` and `npm run build` before the examples. A consumer can install the packed artifact with `npm pack -w packages/sec-edgar` and `npm install /path/to/tarball`.
+Requires Node.js 24 or newer. In your application, run `npm install @rayterion/sec-edgar`. Source contributors can run `npm install` and `npm run build` in this workspace.
 
 ## JavaScript
 
 ```js
-import secEdgar from "@sec-edgar/research-client";
+import secEdgar from "@rayterion/sec-edgar";
 
 const edgar = secEdgar({ userAgent: "Example Research contact@example.com" });
 const income = await edgar.financials.incomeStatement({
@@ -21,7 +21,7 @@ console.log(income.coverage);
 ## TypeScript
 
 ```ts
-import { createEdgarClient, type Statement } from "@sec-edgar/research-client";
+import { createEdgarClient, type Statement } from "@rayterion/sec-edgar";
 
 const edgar = createEdgarClient({
   userAgent: "Example Research contact@example.com",

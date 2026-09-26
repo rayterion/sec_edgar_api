@@ -7,7 +7,7 @@ Custom or dimensioned filing facts are available for inspection; normalized stat
 Optional validation compares selected instant assets with liabilities plus total equity. It runs only when all three facts share a filing accession, unit, and end date. A mismatch reports the exact difference and source URLs; the SEC values are unchanged.
 
 ```js
-import { createEdgarClient } from "@sec-edgar/research-client";
+import { createEdgarClient } from "@rayterion/sec-edgar";
 
 const edgar = createEdgarClient({
   userAgent: "Example Research contact@example.com",
