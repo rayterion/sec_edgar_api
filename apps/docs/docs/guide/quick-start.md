@@ -1,6 +1,6 @@
 # Five-minute quick start
 
-Requires Node.js 24 or newer. In your application, run `npm install @rayterion/sec-edgar`. Source contributors can run `npm install` and `npm run build` in this workspace.
+Requires Node.js 24 or newer. Once npm publication completes, run `npm install @rayterion/sec-edgar` in your application. Source contributors can run `npm install` and `npm run build` in this workspace.
 
 ## JavaScript
 

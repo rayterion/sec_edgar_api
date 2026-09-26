@@ -1,7 +1,7 @@
 # ADR 021: Documentation hosting on GitHub Pages
 
 - **Date:** 2026-09-25
-- **Status:** Accepted; first remote deployment pending repository Pages activation.
+- **Status:** Accepted; remote deployment verified 2026-09-26.
 
 ## Context
 
@@ -21,7 +21,7 @@ The official Pages artifact workflow publishes the generated site without commit
 
 ## Consequences
 
-A repository administrator must first select **GitHub Actions** as the Pages source. The workflow token cannot activate an unconfigured Pages site. Changing the repository name, owner, or custom domain requires a coordinated config and test update. The site is public; documentation must not include secrets or private data. See the [website guide](../guide/website.md).
+A repository administrator selected **GitHub Actions** as the Pages source; the site was verified live on 2026-09-26. A replacement repository must repeat this setup. The workflow token cannot activate an unconfigured Pages site. Changing the repository name, owner, or custom domain requires a coordinated config and test update. The site is public; documentation must not include secrets or private data. See the [website guide](../guide/website.md).
 
 ## Evidence
 

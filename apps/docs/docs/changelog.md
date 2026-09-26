@@ -1,8 +1,8 @@
 # Changelog and compatibility
 
-## 1.0.0 — 2026-09-26
+## 1.0.0 prepared — 2026-09-26
 
-First public npm release as `@rayterion/sec-edgar`. The tested API includes direct SEC JSON and archive adapters, normalized statements with exact-value lineage and partial-result status, fiscal-period selection, response snapshots, and optional server operations adapters. The public canonical fields and error codes now follow semantic versioning. See the [compatibility matrix](guide/compatibility-matrix.md), [release report](release-report.md), and [known limitations](guide/limitations.md).
+Prepared public npm release as `@rayterion/sec-edgar`; registry upload awaits account 2FA. The tested API includes direct SEC JSON and archive adapters, normalized statements with exact-value lineage and partial-result status, fiscal-period selection, response snapshots, and optional server operations adapters. The public canonical fields and error codes now follow semantic versioning. See the [compatibility matrix](guide/compatibility-matrix.md), [release report](release-report.md), and [known limitations](guide/limitations.md).
 
 ## 0.1.0 preview — 2026-09-24
 

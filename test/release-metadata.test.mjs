@@ -11,6 +11,7 @@ test("v1 package has public publishing and source metadata", () => {
   assert.equal(manifest.name, "@rayterion/sec-edgar");
   assert.equal(manifest.version, "1.0.0");
   assert.equal(manifest.publishConfig?.access, "public");
+  assert.equal(manifest.homepage, "https://rayterion.github.io/sec_edgar_api/");
   assert.equal(
     manifest.repository?.url,
     "git+https://github.com/rayterion/sec_edgar_api.git",
@@ -28,11 +29,8 @@ test("publishing rebuilds JavaScript and declaration files", () => {
   assert.equal(manifest.exports["."].import, "./dist/index.js");
 });
 
-test("published README links to documentation inside the public repository", () => {
-  assert.match(
-    readme,
-    /https:\/\/github\.com\/rayterion\/sec_edgar_api\/tree\/main\/apps\/docs\/docs/,
-  );
+test("published README links to the verified documentation site", () => {
+  assert.match(readme, /https:\/\/rayterion\.github\.io\/sec_edgar_api\//);
   assert.doesNotMatch(readme, /provisional/i);
 });
 

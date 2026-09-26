@@ -14,4 +14,4 @@ const annual = await edgar.financials.incomeStatement({
 console.log(annual.values.revenue, annual.details.revenue?.source.url);
 ```
 
-Read the [documentation](https://github.com/rayterion/sec_edgar_api/tree/main/apps/docs/docs) for API behavior, research, and limitations. SEC content can be corrected or removed. This is not an official SEC product.
+Read the [documentation](https://rayterion.github.io/sec_edgar_api/) for API behavior, research, and limitations. SEC content can be corrected or removed. This is not an official SEC product.

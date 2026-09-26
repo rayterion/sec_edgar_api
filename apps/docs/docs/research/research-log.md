@@ -120,4 +120,8 @@ Optional balance validation compares exact assets, liabilities, and total equity
 
 **Findings and decision.** Use the publisher-owned `@rayterion` scope and publish `@rayterion/sec-edgar@1.0.0` with public access. A registry 404 alone does not reserve the name; the actual publish must establish availability. The dry run contained 47 files (34,953 packed bytes): compiled ESM, declarations, manifest, README, and MIT license. The package `prepack` script rebuilt output before packing. `npm run check` passed, including a clean consumer import from the packed tarball.
 
-**Operational limit.** npm account authentication and the registry's publishing security requirements govern the final upload. The live registry artifact must be verified separately from the dry run.
+**Operational limit.** The first actual `npm publish` attempt returned `E403`: 2FA or a granular token with bypass permission is required. The account owner is enabling 2FA. The live registry artifact must be verified separately from the dry run.
+
+## 2026-09-26: GitHub Pages live verification
+
+**Method and finding.** [Docs Pages run 36210634709](https://github.com/rayterion/sec_edgar_api/actions/runs/36210634709) completed successfully after repository Pages activation. A direct GET of `https://rayterion.github.io/sec_edgar_api/` returned HTTP 200 and Docusaurus HTML. The v1 source commit also passed [Docs Pages run 36211645644](https://github.com/rayterion/sec_edgar_api/actions/runs/36211645644) and [CI run 36211645682](https://github.com/rayterion/sec_edgar_api/actions/runs/36211645682). See [ADR 021](../decisions/021-documentation-hosting.md) and the [website guide](../guide/website.md).
