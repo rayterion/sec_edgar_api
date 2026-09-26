@@ -96,3 +96,13 @@ test("the standalone app installs the GitHub release tag and imports its package
   );
   assert.match(entry, /from "@rayterion\/sec-edgar"/);
 });
+
+test("the lockfile pins v1.0.0 to the verified GitHub release commit", async () => {
+  const lockfile = JSON.parse(
+    await readFile(new URL("../package-lock.json", import.meta.url), "utf8"),
+  );
+  assert.equal(
+    lockfile.packages["node_modules/@rayterion/sec-edgar"].resolved,
+    "git+ssh://git@github.com/rayterion/sec_edgar_api.git#e0d3bddd67ca3bbbd5a56d1acc753a005fdbd242",
+  );
+});

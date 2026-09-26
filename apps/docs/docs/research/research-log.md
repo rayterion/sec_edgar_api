@@ -120,7 +120,7 @@ Optional balance validation compares exact assets, liabilities, and total equity
 
 **Findings and decision.** Use the publisher-owned `@rayterion` scope and publish `@rayterion/sec-edgar@1.0.0` with public access. A registry 404 alone does not reserve the name; the actual publish must establish availability. The dry run contained 47 files (34,953 packed bytes): compiled ESM, declarations, manifest, README, and MIT license. The package `prepack` script rebuilt output before packing. `npm run check` passed, including a clean consumer import from the packed tarball.
 
-**Operational limit.** The first actual `npm publish` attempt returned `E403`: 2FA or a granular token with bypass permission is required. The account owner is enabling 2FA. The live registry artifact must be verified separately from the dry run.
+**Operational limit.** The first actual `npm publish` attempt returned `E403`: 2FA or a granular token with bypass permission is required. This historical attempt was abandoned when the distribution decision changed to GitHub tags. No npm registry artifact was created.
 
 ## 2026-09-26: GitHub Pages live verification
 
@@ -138,4 +138,4 @@ Optional balance validation compares exact assets, liabilities, and total equity
 
 **Decision.** Use a dedicated release commit tagged `v1.0.0`. Keep source and tests on `main`. The standalone example pins the GitHub tag, and its lockfile should pin the resolved commit. The library itself will not be sent to npm; its runtime dependencies still use npm unless consumers configure another registry. See [ADR 014](../decisions/014-distribution.md).
 
-**Verification and uncertainty.** Local assembly tests cover manifest and required output. A clean install against the pushed GitHub tag is required before claiming the release works. GitHub availability and Git transport permissions vary by deployment environment.
+**Verification and uncertainty.** Local assembly tests cover manifest and required output. The public annotated tag was pushed and resolves to release commit `e0d3bddd67ca3bbbd5a56d1acc753a005fdbd242`, assembled from source commit `81ae9902ad22aaf0f732233f22c52d0812017c35`. `npm ci` in the standalone app and ESM imports passed. A new temporary consumer with `GIT_SSH_COMMAND=false` and an empty cache also installed the tag, confirming public access without an SSH key. GitHub availability remains an operational dependency.

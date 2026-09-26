@@ -6,7 +6,7 @@ Use Node.js 24 or newer. Run:
 
 ```bash
 cd examples/npm-consumer
-npm install
+npm ci
 npm test
 SEC_USER_AGENT="Example Research contact@example.com" npm start -- AAPL 2025 2
 ```
