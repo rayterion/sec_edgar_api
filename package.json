@@ -1,0 +1,43 @@
+{
+  "name": "@rayterion/sec-edgar",
+  "version": "1.0.0",
+  "description": "Public, read-only SEC EDGAR data client",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "SOURCE.md"
+  ],
+  "dependencies": {
+    "fast-xml-parser": "^5.11.1",
+    "htmlparser2": "^12.0.0",
+    "yauzl": "^3.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rayterion/sec_edgar_api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rayterion/sec_edgar_api/issues"
+  },
+  "homepage": "https://rayterion.github.io/sec_edgar_api/",
+  "keywords": [
+    "sec",
+    "edgar",
+    "xbrl",
+    "financial-statements",
+    "filings"
+  ]
+}

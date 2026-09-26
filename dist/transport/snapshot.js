@@ -1,0 +1,123 @@
+import { createHash } from "node:crypto";
+import { EdgarError, schema } from "../errors.js";
+const digest = (body) => createHash("sha256").update(body, "utf8").digest("hex");
+function valid(entry) {
+    return (typeof entry.url === "string" &&
+        /^https:\/\/(?:data|www)\.sec\.gov\//.test(entry.url) &&
+        typeof entry.retrievedAt === "string" &&
+        !Number.isNaN(Date.parse(entry.retrievedAt)) &&
+        Number.isInteger(entry.status) &&
+        entry.status >= 100 &&
+        entry.status <= 599 &&
+        typeof entry.contentType === "string" &&
+        typeof entry.body === "string" &&
+        typeof entry.bodyCaptured === "boolean" &&
+        entry.sha256 === digest(entry.body));
+}
+export class SecSnapshot {
+    maxBytes;
+    maxEntries;
+    mode;
+    entries = new Map();
+    bytes = 0;
+    constructor(mode = "record", maxBytes = 100_000_000, maxEntries = 256) {
+        this.maxBytes = maxBytes;
+        this.maxEntries = maxEntries;
+        this.mode = mode;
+    }
+    static replay(artifact) {
+        schema(artifact?.version === 1 && Array.isArray(artifact.entries), "Invalid SEC snapshot format");
+        const snapshot = new SecSnapshot("replay");
+        for (const entry of artifact.entries) {
+            if (!valid(entry) || snapshot.entries.has(entry.url))
+                throw new EdgarError("SNAPSHOT_INTEGRITY", "SEC snapshot entry is corrupt or duplicated", { url: entry?.url });
+            snapshot.store(entry);
+        }
+        return snapshot;
+    }
+    store(entry) {
+        const old = this.entries.get(entry.url);
+        const size = Buffer.byteLength(entry.body, "utf8");
+        const nextBytes = this.bytes - (old ? Buffer.byteLength(old.body, "utf8") : 0) + size;
+        if (nextBytes > this.maxBytes ||
+            (!old && this.entries.size >= this.maxEntries))
+            throw new EdgarError("OVERSIZED", "SEC snapshot limit exceeded", {
+                url: entry.url,
+            });
+        this.bytes = nextBytes;
+        this.entries.set(entry.url, Object.freeze({ ...entry }));
+    }
+    capture(url, status, contentType, body, bodyCaptured = true, retryAfter) {
+        if (this.mode !== "record")
+            throw new EdgarError("INVALID_INPUT", "Cannot write a replay snapshot");
+        const entry = {
+            url,
+            retrievedAt: new Date().toISOString(),
+            status,
+            contentType,
+            sha256: digest(body),
+            body,
+            bodyCaptured,
+            ...(retryAfter ? { retryAfter } : {}),
+        };
+        this.store(entry);
+        return entry;
+    }
+    get(url) {
+        return this.entries.get(url);
+    }
+    response(url) {
+        if (this.mode !== "replay")
+            throw new EdgarError("INVALID_INPUT", "Snapshot is not in replay mode");
+        const entry = this.entries.get(url);
+        if (!entry)
+            throw new EdgarError("SNAPSHOT_MISS", "SEC URL is absent from snapshot", {
+                url,
+            });
+        return new Response(entry.body, {
+            status: entry.status,
+            headers: {
+                "content-type": entry.contentType,
+                ...(entry.retryAfter ? { "retry-after": entry.retryAfter } : {}),
+            },
+        });
+    }
+    export() {
+        return {
+            version: 1,
+            entries: [...this.entries.values()]
+                .sort((a, b) => a.url.localeCompare(b.url))
+                .map((entry) => ({ ...entry })),
+        };
+    }
+}
+function evidence(entry) {
+    const { url, retrievedAt, status, sha256, bodyCaptured } = entry;
+    return { url, retrievedAt, status, sha256, bodyCaptured };
+}
+export function diffSnapshots(before, after) {
+    const older = new Map(before.entries.map((x) => [x.url, x]));
+    const newer = new Map(after.entries.map((x) => [x.url, x]));
+    return [...new Set([...older.keys(), ...newer.keys()])]
+        .sort()
+        .flatMap((url) => {
+        const a = older.get(url), b = newer.get(url);
+        if (!a)
+            return [{ url, kind: "added", after: evidence(b) }];
+        if (!b)
+            return [{ url, kind: "notCaptured", before: evidence(a) }];
+        if (a.status === b.status && a.sha256 === b.sha256)
+            return [];
+        return [
+            {
+                url,
+                kind: b.status === 404 || b.status === 410 ? "removed" : "changed",
+                before: evidence(a),
+                after: evidence(b),
+            },
+        ];
+    });
+}
+export function responseEvidence(entry) {
+    return evidence(entry);
+}
