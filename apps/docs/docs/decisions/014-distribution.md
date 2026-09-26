@@ -1,28 +1,28 @@
 # ADR 014: Distribution
 
-- **Date:** 2026-09-24
-- **Status:** Accepted; revised 2026-09-26 for the user-authorized public v1.0.0 release.
+- **Date:** 2026-09-24; revised 2026-09-26
+- **Status:** Accepted
 
 ## Context
 
-The public SEC client must expose useful financial data while respecting the endpoint behavior recorded in [research](../research/ecosystem-review.md).
+The library lives in `packages/sec-edgar` inside a workspace. npm Git dependencies install the repository root at a tag. The user chose GitHub tags for distributing this package after npm publication failed. See the [dated research](../research/research-log.md#2026-09-26-github-tag-distribution).
 
 ## Decision
 
-Use MIT for the core and keep SEC retrieval direct and free. Publish the v1.0.0 ESM package publicly under the publisher-owned `@rayterion/sec-edgar` scope; keep the documentation source in this repository.
+Keep the MIT core free and SEC retrieval direct. Assemble a release tree with a root `package.json`, compiled `dist/`, license, README, and a link to its source commit. Commit that tree on a release branch and tag it `v1.0.0`. Consumers depend on `github:rayterion/sec_edgar_api#v1.0.0` under the `@rayterion/sec-edgar` package name. Do not publish the library to the npm registry.
 
 ## Alternatives considered
 
-Proprietary client; hosted required service.
+A registry publication, a Git tag of the workspace root, and a hosted service. A workspace-root tag would install `sec-edgar-workspace`, which has no library export.
 
 ## Rationale
 
-Supports local research use and a separate specialist-services path.
+The release tag offers a root-installable artifact without changing the source workspace or requiring registry publication. A source commit link keeps the build auditable.
 
 ## Consequences
 
-The authenticated npm user `rayterion` owns the chosen scope. Public consumers can install the package without credentials. The package is unofficial, and unsupported data coverage remains documented. Revisit this record when new evidence changes distribution needs.
+Git and GitHub availability are required for a fresh install; runtime dependencies still resolve through npm. Tags are immutable release identifiers and must never be moved. Each version needs a new assembled release commit and tag. The package remains unofficial and its coverage limits apply.
 
 ## Evidence
 
-[Ecosystem review](../research/ecosystem-review.md); [npm release research](../research/research-log.md#2026-09-26-npm-v1-distribution); [source register](../research/sources.md).
+[Research log](../research/research-log.md#2026-09-26-github-tag-distribution); [source register](../research/sources.md); [ecosystem review](../research/ecosystem-review.md).

@@ -2,7 +2,7 @@
 
 Unofficial public SEC EDGAR ESM client for Node.js 24+.
 
-Install with `npm install @rayterion/sec-edgar`. Supply an identifying User-Agent with a contact email.
+Install from GitHub with `npm install "@rayterion/sec-edgar@github:rayterion/sec_edgar_api#v1.0.0"`. Supply an identifying User-Agent with a contact email.
 
 ```js
 import secEdgar from "@rayterion/sec-edgar";

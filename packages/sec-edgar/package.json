@@ -50,8 +50,5 @@
     "xbrl",
     "financial-statements",
     "filings"
-  ],
-  "publishConfig": {
-    "access": "public"
-  }
+  ]
 }

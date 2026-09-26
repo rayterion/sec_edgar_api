@@ -81,7 +81,7 @@ test("propagates SEC client failures instead of presenting a plausible result", 
   );
 });
 
-test("the standalone app declares the registry package and imports it by name", async () => {
+test("the standalone app installs the GitHub release tag and imports its package name", async () => {
   const manifest = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
   );
@@ -90,6 +90,9 @@ test("the standalone app declares the registry package and imports it by name", 
     "utf8",
   );
   assert.equal(manifest.private, true);
-  assert.equal(manifest.dependencies["@rayterion/sec-edgar"], "1.0.0");
+  assert.equal(
+    manifest.dependencies["@rayterion/sec-edgar"],
+    "github:rayterion/sec_edgar_api#v1.0.0",
+  );
   assert.match(entry, /from "@rayterion\/sec-edgar"/);
 });

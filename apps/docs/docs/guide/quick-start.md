@@ -1,6 +1,6 @@
 # Five-minute quick start
 
-Requires Node.js 24 or newer. Once npm publication completes, run `npm install @rayterion/sec-edgar` in your application. Source contributors can run `npm install` and `npm run build` in this workspace.
+Requires Node.js 24 or newer. Install the library from the v1.0.0 GitHub tag with `npm install "@rayterion/sec-edgar@github:rayterion/sec_edgar_api#v1.0.0"` in your application. The dependency key stays `@rayterion/sec-edgar`; the package itself comes from GitHub. Runtime dependencies still resolve through npm. Source contributors can run `npm install` and `npm run build` in this workspace.
 
 ## JavaScript
 

@@ -1,5 +1,5 @@
 {
-  "name": "sec-edgar-npm-consumer",
+  "name": "sec-edgar-github-consumer",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -11,6 +11,6 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@rayterion/sec-edgar": "1.0.0"
+    "@rayterion/sec-edgar": "github:rayterion/sec_edgar_api#v1.0.0"
   }
 }

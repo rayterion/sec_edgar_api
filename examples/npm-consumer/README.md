@@ -1,8 +1,8 @@
-# Standalone npm consumer
+# Standalone GitHub-tag consumer
 
-This app installs `@rayterion/sec-edgar@1.0.0` from the public npm registry. It is outside the repository workspaces, so `npm ci` here does not use the local package symlink.
+This app installs `@rayterion/sec-edgar` from `github:rayterion/sec_edgar_api#v1.0.0`. Its lockfile pins the tag commit. It is outside the repository workspaces, so `npm ci` here does not use the local package symlink.
 
-Use Node.js 24 or newer. Once the package is published:
+Use Node.js 24 or newer. Run:
 
 ```bash
 cd examples/npm-consumer
